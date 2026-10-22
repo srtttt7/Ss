@@ -1,57 +1,67 @@
-name: iOS Signed Build
+name: ForgeSign iOS
 
 on:
-  workflow_dispatch:
+  push:
+    branches: [main]
+  pull_request:
 
 jobs:
-  build:
-    runs-on: macos-latest
-
+  validate:
+    runs-on: macos-26
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Import Certificate and Provisioning Profile
-        env:
-          CERT_P12_BASE64: ${{ secrets.IOS_CERT_P12_BASE64 }}
-          CERT_PASSWORD: ${{ secrets.IOS_CERT_PASSWORD }}
-          PROFILE_BASE64: ${{ secrets.IOS_PROVISIONING_PROFILE_BASE64 }}
+      - name: Show Xcode toolchain
+        run: xcodebuild -version
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate project
+        run: xcodegen generate
+
+      - name: Check formatting
+        run: git diff --check
+
+      - name: Test IPA packaging
+        run: python3 -m unittest discover -s scripts -p 'test_*.py'
+
+      - name: Select available simulator
         run: |
-          # Create temporary keychain
-          security create-keychain -p actions temp.keychain
-          security default-keychain -s temp.keychain
-          security unlock-keychain -p actions temp.keychain
-          security set-keychain-settings -t 3600 -u temp.keychain
+          DEVICE_ID=$(xcrun simctl list devices available | awk -F '[()]' '/iPhone|iPad/ {print $2; exit}')
+          test -n "$DEVICE_ID"
+          echo "SIMULATOR_UDID=$DEVICE_ID" >> "$GITHUB_ENV"
 
-          # Import .p12 certificate
-          echo "$CERT_P12_BASE64" | base64 -d > cert.p12
-          security import cert.p12 -k temp.keychain -P "$CERT_PASSWORD" -T /usr/bin/codesign
-          security set-key-partition-list -S apple-tool:,apple: -s -k actions temp.keychain
-
-          # Install provisioning profile
-          echo "$PROFILE_BASE64" | base64 -d > profile.mobileprovision
-          mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
-          cp profile.mobileprovision ~/Library/MobileDevice/Provisioning\ Profiles/
-
-      - name: Build and Sign
+      - name: Run simulator tests
         run: |
-          # If you already have a pre-built .ipa file, you can use the following command instead:
-          # codesign -f -s "Apple Distribution" --entitlements entitlements.plist YourApp.ipa
-          #
-          # If you need to compile from source, use xcodebuild:
-          # xcodebuild -workspace YourApp.xcworkspace -scheme YourApp -configuration Release \
-          #   -archivePath build/YourApp.xcarchive archive \
-          #   CODE_SIGN_IDENTITY="Apple Distribution" \
-          #   PROVISIONING_PROFILE_SPECIFIER="Your Profile Name"
-          #
-          # Then export the .ipa:
-          # xcodebuild -exportArchive -archivePath build/YourApp.xcarchive \
-          #   -exportPath build/ \
-          #   -exportOptionsPlist ExportOptions.plist
-          echo "Build step placeholder - modify according to your project structure"
+          xcodebuild test \
+            -project ForgeSignMobile.xcodeproj \
+            -scheme ForgeSignMobileTests \
+            -destination "platform=iOS Simulator,id=$SIMULATOR_UDID" \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO
 
-      - name: Upload IPA
-        uses: actions/upload-artifact@v4
-        with:
-          name: signed-ipa
-          path: build/*.ipa
+      - name: Build device Release target
+        run: |
+          xcodebuild build \
+            -project ForgeSignMobile.xcodeproj \
+            -scheme ForgeSignMobile \
+            -configuration Release \
+            -sdk iphoneos \
+            -derivedDataPath build/ci-derived \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO
+
+      - name: Package unsigned IPA
+        run: |
+          python3 scripts/package_ipa.py pack \
+            build/ci-derived/Build/Products/Release-iphoneos/ForgeSign.app \
+            build/ForgeSign-latest.ipa
+
+      - name: Validate current IPA structure
+        run: |
+          test -f build/ForgeSign-latest.ipa
+          unzip -t build/ForgeSign-latest.ipa
+          python3 scripts/package_ipa.py validate build/ForgeSign-latest.ipa
+          unzip -Z1 build/ForgeSign-latest.ipa | grep -Fx 'Payload/ForgeSign.app/ForgeSign'
+          ! unzip -Z1 build/ForgeSign-latest.ipa | grep -E '\.(debug\.dylib|preview\.dylib)$'
