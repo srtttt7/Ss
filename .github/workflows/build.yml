@@ -160,6 +160,7 @@ jobs:
                                       .listStyle(PlainListStyle())
                                   }
                               }
+                              .padding(.bottom, 90) // مساحة آمنة لكي لا يختفي المحتوى خلف الشريط السفلي
                               .navigationBarTitle("التطبيقات", displayMode: .large)
                           }
                           .tag(0)
@@ -219,6 +220,7 @@ jobs:
                                   Spacer()
                               }
                               .padding(.top, 10)
+                              .padding(.bottom, 90)
                               .navigationBarTitle("توقيع", displayMode: .large)
                           }
                           .tag(1)
@@ -240,10 +242,11 @@ jobs:
                                       HStack {
                                           Text("إصدار التوافق:")
                                           Spacer()
-                                          Text("iOS 26+ متوافق").foregroundColor(.green)
+                                          Text("iOS 18+ متوافق").foregroundColor(.green)
                                       }
                                   }
                               }
+                              .padding(.bottom, 90)
                               .navigationBarTitle("الإعدادات", displayMode: .large)
                           }
                           .tag(2)
@@ -292,6 +295,7 @@ jobs:
                                       .listStyle(PlainListStyle())
                                   }
                               }
+                              .padding(.bottom, 90)
                               .navigationBarTitle("المكتبة", displayMode: .large)
                           }
                           .tag(3)
@@ -338,6 +342,7 @@ jobs:
                                       }
                                       .padding(.horizontal)
                                   }
+                                  .padding(.bottom, 90)
                               }
                               .navigationBarTitle("حول", displayMode: .large)
                           }
@@ -346,7 +351,7 @@ jobs:
                       .accentColor(.blue)
                       .preferredColorScheme(.dark)
 
-                      // شريط تنقل سفلي عائم
+                      // شريط تنقل سفلي عائم بتصميم مرتب ومريح
                       HStack {
                           TabBarButton(icon: "square.stack.3d.up.fill", title: "App Store", tag: 0, selection: $selectedTab)
                           TabBarButton(icon: "signature", title: "توقيع", tag: 1, selection: $selectedTab)
@@ -503,7 +508,8 @@ jobs:
           _ = UIApplicationMain(CommandLine.argc, CommandLine.unsafeArgv, nil, NSStringFromClass(AppDelegate.self))
           EOF
 
-          xcrun --sdk iphoneos swiftc -target arm64-apple-ios16.0 main.swift -o build/Payload/${APP_NAME}.app/${APP_NAME}
+          # رفع إصدار الحد الأدنى إلى iOS 18.0 للتوافق مع الأجهزة الحديثة
+          xcrun --sdk iphoneos swiftc -target arm64-apple-ios18.0 main.swift -o build/Payload/${APP_NAME}.app/${APP_NAME}
 
           cat << 'EOF' > build/Payload/${APP_NAME}.app/Info.plist
           <?xml version="1.0" encoding="UTF-8"?>
@@ -525,7 +531,7 @@ jobs:
               <key>CFBundlePackageType</key>
               <string>APPL</string>
               <key>MinimumOSVersion</key>
-              <string>16.0</string>
+              <string>18.0</string>
               <key>UIRequiredDeviceCapabilities</key>
               <array><string>arm64</string></array>
               <key>UIDeviceFamily</key>
