@@ -1,0 +1,475 @@
+import SwiftUI
+import UniformTypeIdentifiers
+
+// MARK: - Models
+struct AppItem: Identifiable, Codable {
+    var id = UUID()
+    let name: String
+    let bundleID: String
+    let version: String
+    let size: String
+    let iconURL: String
+    let downloadURL: String
+
+    enum CodingKeys: String, CodingKey {
+        case name
+        case bundleID = "bundleIdentifier"
+        case version
+        case size
+        case iconURL = "icon"
+        case downloadURL = "downloadURL"
+    }
+}
+
+struct AppSource: Identifiable, Codable {
+    var id = UUID()
+    let name: String
+    let url: String
+    let appCount: Int
+}
+
+// MARK: - Main View
+struct ContentView: View {
+    @State private var selectedTab = 0
+    @State private var searchText = ""
+    @State private var appsList: [AppItem] = [] // قائمة فارغة مبدئياً
+    @State private var sourcesList: [AppSource] = []
+    
+    // بيانات تعديل التطبيق
+    @State private var editAppName = ""
+    @State private var editBundleID = "com.srt.app"
+    @State private var editVersion = "1.0"
+    @State private var selectedImage: UIImage? = nil
+    @State private var showImagePicker = false
+    @State private var showFilePicker = false
+    
+    // أداة الشهادة
+    @State private var certPassword = ""
+    @State private var showCertModal = false
+    @State private var showSourcesModal = false
+    @State private var newSourceURL = ""
+
+    var body: some View {
+        TabView(selection: $selectedTab) {
+            
+            // MARK: Tab 1: التطبيقات
+            NavigationStack {
+                VStack {
+                    // شريط البحث
+                    HStack {
+                        Image(systemName: "magnifyingglass")
+                            .foregroundColor(.gray)
+                        TextField("ألعاب وتطبيقات والمزيد", text: $searchText)
+                            .foregroundColor(.white)
+                    }
+                    .padding(12)
+                    .background(Color(white: 0.12))
+                    .cornerRadius(12)
+                    .padding(.horizontal)
+
+                    if filteredApps.isEmpty {
+                        Spacer()
+                        VStack(spacing: 12) {
+                            Image(systemName: "box.truck.badge.clock")
+                                .font(.system(size: 50))
+                                .foregroundColor(.gray)
+                            Text("لا توجد تطبيقات حالياً")
+                                .font(.headline)
+                                .foregroundColor(.white)
+                            Text("قم بإضافة سورس جديد من قسم الإعدادات لعرض التطبيقات وحفظها.")
+                                .font(.subheadline)
+                                .foregroundColor(.gray)
+                                .multilineTextAlignment(.center)
+                                .padding(.horizontal, 30)
+                        }
+                        Spacer()
+                    } else {
+                        List(filteredApps) { app in
+                            HStack(spacing: 14) {
+                                AsyncImage(url: URL(string: app.iconURL)) { image in
+                                    image.resizable()
+                                } placeholder: {
+                                    Color.gray.opacity(0.3)
+                                }
+                                .frame(width: 58, height: 58)
+                                .cornerRadius(14)
+
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text(app.name)
+                                        .font(.system(size: 16, weight: .semibold))
+                                        .foregroundColor(.white)
+                                    Text("\(app.version) • \(app.size)")
+                                        .font(.system(size: 13))
+                                        .foregroundColor(.gray)
+                                }
+
+                                Spacer()
+
+                                Button(action: {
+                                    loadAppToSigner(app: app)
+                                }) {
+                                    Text("تحميل")
+                                        .font(.system(size: 14, weight: .bold))
+                                        .padding(.horizontal, 18)
+                                        .padding(.vertical, 8)
+                                        .background(Color.blue)
+                                        .foregroundColor(.white)
+                                        .cornerRadius(20)
+                                }
+                            }
+                            .listRowBackground(Color.clear)
+                        }
+                        .listStyle(.plain)
+                    }
+                }
+                .navigationTitle("التطبيقات")
+                .preferredColorScheme(.dark)
+            }
+            .tabItem {
+                Label("التطبيقات", systemImage: "square.stack.3d.up.fill")
+            }
+            .tag(0)
+
+            // MARK: Tab 2: توقيع (تعديل التطبيق)
+            NavigationStack {
+                ScrollView {
+                    VStack(spacing: 20) {
+                        // معاينة الأيقونة
+                        ZStack {
+                            if let image = selectedImage {
+                                Image(uiImage: image)
+                                    .resizable()
+                                    .scaledToFill()
+                            } else {
+                                RoundedRectangle(cornerRadius: 22)
+                                    .fill(Color(white: 0.2))
+                                Image(systemName: "app.fill")
+                                    .font(.system(size: 40))
+                                    .foregroundColor(.white)
+                            }
+                        }
+                        .frame(width: 90, height: 90)
+                        .cornerRadius(22)
+                        .padding(.top, 10)
+
+                        // زر الصور والملفات
+                        HStack(spacing: 12) {
+                            Button(action: { showImagePicker = true }) {
+                                Label("الصور", systemImage: "photo")
+                                    .fontWeight(.semibold)
+                                    .frame(maxWidth: .infinity)
+                                    .padding()
+                                    .background(Color.blue)
+                                    .foregroundColor(.white)
+                                    .cornerRadius(25)
+                            }
+                            
+                            Button(action: { showFilePicker = true }) {
+                                Label("الملفات", systemImage: "folder")
+                                    .fontWeight(.semibold)
+                                    .frame(maxWidth: .infinity)
+                                    .padding()
+                                    .background(Color.green)
+                                    .foregroundColor(.white)
+                                    .cornerRadius(25)
+                            }
+                        }
+                        .padding(.horizontal)
+
+                        // بيانات التطبيق
+                        VStack(spacing: 15) {
+                            VStack(alignment: .leading, spacing: 6) {
+                                Text("اسم التطبيق").font(.caption).foregroundColor(.gray)
+                                TextField("اسم التطبيق", text: $editAppName)
+                                    .padding(.bottom, 8)
+                                    .overlay(Rectangle().frame(height: 1).foregroundColor(Color(white: 0.2)), alignment: .bottom)
+                            }
+
+                            VStack(alignment: .leading, spacing: 6) {
+                                Text("معرف الحزمة").font(.caption).foregroundColor(.gray)
+                                TextField("com.example.app", text: $editBundleID)
+                                    .padding(.bottom, 8)
+                                    .overlay(Rectangle().frame(height: 1).foregroundColor(Color(white: 0.2)), alignment: .bottom)
+                            }
+
+                            VStack(alignment: .leading, spacing: 6) {
+                                Text("الإصدار").font(.caption).foregroundColor(.gray)
+                                TextField("1.0", text: $editVersion)
+                                    .padding(.bottom, 8)
+                                    .overlay(Rectangle().frame(height: 1).foregroundColor(Color(white: 0.2)), alignment: .bottom)
+                            }
+                        }
+                        .padding()
+                        .background(Color(white: 0.1))
+                        .cornerRadius(16)
+                        .padding(.horizontal)
+
+                        // أزرار التوقيع والتثبيت
+                        VStack(spacing: 12) {
+                            Button(action: { signAndInstall() }) {
+                                Text("توقيع وتثبيت")
+                                    .fontWeight(.bold)
+                                    .frame(maxWidth: .infinity)
+                                    .padding()
+                                    .background(Color.blue)
+                                    .foregroundColor(.white)
+                                    .cornerRadius(25)
+                            }
+
+                            Button(action: { signOnly() }) {
+                                Text("توقيع فقط")
+                                    .fontWeight(.bold)
+                                    .frame(maxWidth: .infinity)
+                                    .padding()
+                                    .background(Color(white: 0.2))
+                                    .foregroundColor(.white)
+                                    .cornerRadius(25)
+                            }
+                        }
+                        .padding(.horizontal)
+                    }
+                }
+                .navigationTitle("تعديل التطبيق")
+                .preferredColorScheme(.dark)
+            }
+            .tabItem {
+                Label("توقيع", systemImage: "pencil.tip.crop.circle")
+            }
+            .tag(1)
+
+            // MARK: Tab 3: الإعدادات
+            NavigationStack {
+                List {
+                    Section {
+                        Button(action: { showCertModal = true }) {
+                            HStack {
+                                Label("الشهادة (.p12 & Profile)", systemImage: "certificate")
+                                Spacer()
+                                Image(systemName: "chevron.left").foregroundColor(.gray)
+                            }
+                            .foregroundColor(.white)
+                        }
+                        
+                        HStack {
+                            Label("اللغة", systemImage: "globe")
+                            Spacer()
+                            Text("العربية").foregroundColor(.gray)
+                        }
+                    }
+
+                    Section {
+                        Button(action: { showSourcesModal = true }) {
+                            HStack {
+                                Label("مصادر التطبيقات (Sources)", systemImage: "square.stack.3d.down.right")
+                                Spacer()
+                                Image(systemName: "chevron.left").foregroundColor(.gray)
+                            }
+                            .foregroundColor(.white)
+                        }
+
+                        Button(action: { selectedTab = 1 }) {
+                            HStack {
+                                Label("مكتبة التطبيقات", systemImage: "folder")
+                                Spacer()
+                                Image(systemName: "chevron.left").foregroundColor(.gray)
+                            }
+                            .foregroundColor(.white)
+                        }
+                    }
+                }
+                .navigationTitle("الإعدادات")
+                .preferredColorScheme(.dark)
+            }
+            .tabItem {
+                Label("الإعدادات", systemImage: "gearshape.fill")
+            }
+            .tag(2)
+
+            // MARK: Tab 4: حول
+            NavigationStack {
+                VStack(spacing: 20) {
+                    VStack(spacing: 12) {
+                        RoundedRectangle(cornerRadius: 22)
+                            .fill(LinearGradient(colors: [.blue, .green], startPoint: .topLeading, endPoint: .bottomTrailing))
+                            .frame(width: 80, height: 80)
+                            .overlay(Text("SRT").font(.system(size: 28, weight: .black)).foregroundColor(.white))
+
+                        Text("SRT STORE")
+                            .font(.title)
+                            .fontWeight(.bold)
+
+                        Text("المطور")
+                            .font(.caption)
+                            .foregroundColor(.gray)
+
+                        Text("موحي العماري")
+                            .font(.title2)
+                            .fontWeight(.semibold)
+
+                        Text("أداة متخصصة لتوقيع وتثبيت تطبيقات IPA مباشرة من جهازك.")
+                            .font(.subheadline)
+                            .foregroundColor(.gray)
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal)
+                    }
+                    .padding()
+                    .frame(maxWidth: .infinity)
+                    .background(Color(white: 0.1))
+                    .cornerRadius(20)
+                    .padding(.horizontal)
+
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("تواصل مع المطور")
+                            .font(.headline)
+                        
+                        HStack(spacing: 12) {
+                            Link(destination: URL(string: "https://t.me/")!) {
+                                Label("Telegram", systemImage: "paperplane.fill")
+                                    .fontWeight(.semibold)
+                                    .frame(maxWidth: .infinity)
+                                    .padding()
+                                    .background(Color.blue)
+                                    .foregroundColor(.white)
+                                    .cornerRadius(20)
+                            }
+
+                            Link(destination: URL(string: "https://tiktok.com/")!) {
+                                Label("TikTok", systemImage: "video.fill")
+                                    .fontWeight(.semibold)
+                                    .frame(maxWidth: .infinity)
+                                    .padding()
+                                    .background(Color.blue)
+                                    .foregroundColor(.white)
+                                    .cornerRadius(20)
+                            }
+                        }
+                    }
+                    .padding()
+                    .frame(maxWidth: .infinity)
+                    .background(Color(white: 0.1))
+                    .cornerRadius(20)
+                    .padding(.horizontal)
+
+                    Spacer()
+                }
+                .padding(.top, 20)
+                .navigationTitle("حول")
+                .preferredColorScheme(.dark)
+            }
+            .tabItem {
+                Label("حول", systemImage: "person.fill")
+            }
+            .tag(3)
+        }
+        .accentColor(.blue)
+        .sheet(isPresented: $showSourcesModal) {
+            SourcesView(sourcesList: $sourcesList, fetchSourceAction: fetchSourceData)
+        }
+        .sheet(isPresented: $showCertModal) {
+            CertificatesView(password: $certPassword)
+        }
+    }
+
+    var filteredApps: [AppItem] {
+        if searchText.isEmpty { return appsList }
+        return appsList.filter { $0.name.localizedCaseInsensitiveContains(searchText) }
+    }
+
+    func loadAppToSigner(app: AppItem) {
+        editAppName = app.name
+        editBundleID = app.bundleID
+        editVersion = app.version
+        selectedTab = 1
+    }
+
+    func fetchSourceData(urlStr: String) {
+        guard let url = URL(string: urlStr) else { return }
+        URLSession.shared.dataTask(with: url) { data, _, _ in
+            if let data = data {
+                if let decoded = try? JSONDecoder().decode([String: [AppItem]].self, from: data) {
+                    let newApps = decoded["apps"] ?? decoded["applications"] ?? []
+                    DispatchQueue.main.async {
+                        self.appsList.append(contentsOf: newApps)
+                        self.sourcesList.append(AppSource(name: "سورس خارجي", url: urlStr, appCount: newApps.count))
+                    }
+                }
+            }
+        }.resume()
+    }
+
+    func signAndInstall() {
+        // منطق التوقيع والتثبيت
+    }
+
+    func signOnly() {
+        // منطق التوقيع فقط
+    }
+}
+
+// MARK: - Modal Views
+struct SourcesView: View {
+    @Binding var sourcesList: [AppSource]
+    var fetchSourceAction: (String) -> Void
+    @State private var inputURL = ""
+    @Environment(\.dismiss) var dismiss
+
+    var body: some View {
+        NavigationStack {
+            VStack(spacing: 20) {
+                TextField("رابط السورس (JSON)", text: $inputURL)
+                    .padding()
+                    .background(Color(white: 0.15))
+                    .cornerRadius(12)
+
+                Button("جلب السورس") {
+                    if !inputURL.isEmpty {
+                        fetchSourceAction(inputURL)
+                        dismiss()
+                    }
+                }
+                .fontWeight(.bold)
+                .frame(maxWidth: .infinity)
+                .padding()
+                .background(Color.blue)
+                .foregroundColor(.white)
+                .cornerRadius(25)
+
+                Spacer()
+            }
+            .padding()
+            .navigationTitle("إضافة سورس")
+            .preferredColorScheme(.dark)
+        }
+    }
+}
+
+struct CertificatesView: View {
+    @Binding var password: String
+    @Environment(\.dismiss) var dismiss
+
+    var body: some View {
+        NavigationStack {
+            VStack(spacing: 20) {
+                SecureField("كلمة سر الشهادة", text: $password)
+                    .padding()
+                    .background(Color(white: 0.15))
+                    .cornerRadius(12)
+
+                Button("حفظ الشهادة") {
+                    dismiss()
+                }
+                .fontWeight(.bold)
+                .frame(maxWidth: .infinity)
+                .padding()
+                .background(Color.blue)
+                .foregroundColor(.white)
+                .cornerRadius(25)
+
+                Spacer()
+            }
+            .padding()
+            .navigationTitle("إدارة الشهادة")
+            .preferredColorScheme(.dark)
+        }
+    }
+}
