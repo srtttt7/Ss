@@ -30,7 +30,6 @@ jobs:
           import UIKit
           import SwiftUI
 
-          @main
           class AppDelegate: UIResponder, UIApplicationDelegate {
               var window: UIWindow?
 
@@ -274,9 +273,11 @@ jobs:
                   return availableApps.filter { $0.name.localizedCaseInsensitiveContains(searchText) }
               }
           }
+
+          // نقطة الدخول التقليدية للتطبيق (بدون أخطاء @main)
+          _ = UIApplicationMain(CommandLine.argc, CommandLine.unsafeArgv, nil, NSStringFromClass(AppDelegate.self))
           EOF
 
-          # ترجمة الكود برفع الإصدار المستهدف إلى iOS 16.0
           xcrun --sdk iphoneos swiftc -target arm64-apple-ios16.0 main.swift -o build/Payload/${APP_NAME}.app/${APP_NAME}
 
           cat << 'EOF' > build/Payload/${APP_NAME}.app/Info.plist
