@@ -26,31 +26,17 @@ jobs:
           mkdir -p build/Payload/${APP_NAME}.app
           echo "APPL????" > build/Payload/${APP_NAME}.app/PkgInfo
 
-          # 1. إنشاء مجلد Assets.xcassets وإضافة معلمات الأيقونة والشاشة
           mkdir -p Assets.xcassets/AppIcon.appiconset
-          
           cat << 'EOF' > Assets.xcassets/AppIcon.appiconset/Contents.json
           {
             "images" : [
-              {
-                "idiom" : "iphone",
-                "size" : "60x60",
-                "scale" : "2x"
-              },
-              {
-                "idiom" : "iphone",
-                "size" : "60x60",
-                "scale" : "3x"
-              }
+              { "idiom" : "iphone", "size" : "60x60", "scale" : "2x" },
+              { "idiom" : "iphone", "size" : "60x60", "scale" : "3x" }
             ],
-            "info" : {
-              "author" : "xcode",
-              "version" : 1
-            }
+            "info" : { "author" : "xcode", "version" : 1 }
           }
           EOF
 
-          # 2. تحويل مجلد Assets إلى ملف Assets.car مدمج باستخدام actool
           actool Assets.xcassets \
             --compile build/Payload/${APP_NAME}.app \
             --platform iphoneos \
@@ -76,7 +62,6 @@ jobs:
               }
           }
 
-          // MARK: - Models
           struct AppItem: Identifiable, Codable {
               var id = UUID()
               var name: String
@@ -92,6 +77,20 @@ jobs:
                   case iconURL = "icon"
                   case downloadURL = "downloadURL"
               }
+          }
+
+          struct AltStoreApp: Codable {
+              let name: String
+              let bundleIdentifier: String
+              let version: String
+              let size: Int?
+              let iconURL: String?
+              let downloadURL: String
+          }
+
+          struct AltStoreRepo: Codable {
+              let name: String?
+              let apps: [AltStoreApp]?
           }
 
           struct AppSource: Identifiable, Codable {
@@ -113,21 +112,18 @@ jobs:
               @State private var searchText = ""
               
               @State private var availableApps: [AppItem] = [
+                  AppItem(name: "SkyGuide", bundleID: "com.fifthstarlabs.skyguide", version: "11.0", size: "120 MB", iconURL: "", downloadURL: "https://fastsign.dev/apps/skyguide.ipa"),
                   AppItem(name: "Textastic", bundleID: "com.textasticapp.textastic", version: "10.2", size: "38.5 MB", iconURL: "", downloadURL: "https://fastsign.dev/apps/textastic.ipa"),
-                  AppItem(name: "SkyGuide", bundleID: "com.fifthstarlabs.skyguide", version: "11.0", size: "120 MB", iconURL: "", downloadURL: ""),
-                  AppItem(name: "Hevy", bundleID: "com.hevy.app", version: "2.1", size: "45 MB", iconURL: "", downloadURL: ""),
-                  AppItem(name: "Yazio", bundleID: "com.yazio.android", version: "7.8", size: "62 MB", iconURL: "", downloadURL: ""),
-                  AppItem(name: "PeakVisor", bundleID: "com.routes.peakvisor", version: "4.5", size: "90 MB", iconURL: "", downloadURL: ""),
-                  AppItem(name: "Habits", bundleID: "com.habits.app", version: "3.0", size: "22 MB", iconURL: "", downloadURL: ""),
-                  AppItem(name: "Drafts", bundleID: "com.agiletortoise.Drafts5", version: "35.1", size: "55 MB", iconURL: "", downloadURL: "")
+                  AppItem(name: "Hevy", bundleID: "com.hevy.app", version: "2.1", size: "45 MB", iconURL: "", downloadURL: "https://fastsign.dev/apps/hevy.ipa"),
+                  AppItem(name: "Yazio", bundleID: "com.yazio.android", version: "7.8", size: "62 MB", iconURL: "", downloadURL: "https://fastsign.dev/apps/yazio.ipa"),
+                  AppItem(name: "PeakVisor", bundleID: "com.routes.peakvisor", version: "4.5", size: "90 MB", iconURL: "", downloadURL: "https://fastsign.dev/apps/peakvisor.ipa"),
+                  AppItem(name: "Habits", bundleID: "com.habits.app", version: "3.0", size: "22 MB", iconURL: "", downloadURL: "https://fastsign.dev/apps/habits.ipa"),
+                  AppItem(name: "Drafts", bundleID: "com.agiletortoise.Drafts5", version: "35.1", size: "55 MB", iconURL: "", downloadURL: "https://fastsign.dev/apps/drafts.ipa")
               ]
               
-              @State private var libraryApps: [AppItem] = [
-                  AppItem(name: "Textastic", bundleID: "com.textasticapp.textastic", version: "10.2", size: "38.5 MB", iconURL: "", downloadURL: "")
-              ]
-              
+              @State private var libraryApps: [AppItem] = []
               @State private var sourcesList: [AppSource] = [
-                  AppSource(name: "FastSign Main Repo", url: "https://fastsign.dev/repo.json", appCount: 7)
+                  AppSource(name: "FastSign Repo", url: "https://fastsign.dev/repo.json", appCount: 7)
               ]
               
               @State private var showSourcesModal = false
@@ -508,11 +504,17 @@ jobs:
               func fetchRepo(urlStr: String) {
                   guard let url = URL(string: urlStr) else { return }
                   URLSession.shared.dataTask(with: url) { data, _, _ in
-                      if let data = data, let decoded = try? JSONDecoder().decode([String: [AppItem]].self, from: data) {
-                          let apps = decoded["apps"] ?? decoded["applications"] ?? []
+                      if let data = data, let repo = try? JSONDecoder().decode(AltStoreRepo.self, from: data) {
+                          var newItems: [AppItem] = []
+                          if let apps = repo.apps {
+                              for a in apps {
+                                  let sz = a.size != nil ? "\(a.size! / (1024*1024)) MB" : "45 MB"
+                                  newItems.append(AppItem(name: a.name, bundleID: a.bundleIdentifier, version: a.version, size: sz, iconURL: a.iconURL ?? "", downloadURL: a.downloadURL))
+                              }
+                          }
                           DispatchQueue.main.async {
-                              availableApps.append(contentsOf: apps)
-                              sourcesList.append(AppSource(name: "سورس خارجي", url: urlStr, appCount: apps.count))
+                              availableApps.append(contentsOf: newItems)
+                              sourcesList.append(AppSource(name: repo.name ?? "سورس", url: urlStr, appCount: newItems.count))
                               dismiss()
                           }
                       } else {
