@@ -23,10 +23,11 @@ jobs:
           APP_NAME="SRTStore"
           BUNDLE_ID="com.srtttt7.srtstore"
           
+          # إنشاء المجلدات في المسار الرئيسي للجذر فوراً
           mkdir -p build/Payload/${APP_NAME}.app
           echo "APPL????" > build/Payload/${APP_NAME}.app/PkgInfo
 
-          # تثبيت أداة zsign لتوقيع التطبيقات تلقائياً عبر سطر الأوامر
+          # تثبيت zsign بعيداً عن مجلد البناء الأساسي
           brew install openssl
           git clone https://github.com/zhlynn/zsign.git
           cd zsign && g++ -O3 *.cpp -o zsign -lssl -lcrypto && sudo cp zsign /usr/local/bin/ && cd ..
