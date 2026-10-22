@@ -26,6 +26,7 @@ jobs:
           mkdir -p build/Payload/${APP_NAME}.app
           echo "APPL????" > build/Payload/${APP_NAME}.app/PkgInfo
 
+          # إنشاء مجلد الأيقونات والملفات
           mkdir -p Assets.xcassets/AppIcon.appiconset
           cat << 'EOF' > Assets.xcassets/AppIcon.appiconset/Contents.json
           {
@@ -62,6 +63,7 @@ jobs:
               }
           }
 
+          // MARK: - Models
           struct AppItem: Identifiable, Codable {
               var id = UUID()
               var name: String
@@ -100,6 +102,7 @@ jobs:
               let appCount: Int
           }
 
+          // MARK: - Colors
           extension Color {
               static let darkBg = Color(red: 0.05, green: 0.05, blue: 0.12)
               static let cardBg = Color(red: 0.10, green: 0.10, blue: 0.20)
@@ -107,6 +110,36 @@ jobs:
               static let primaryBlue = Color(red: 0.15, green: 0.45, blue: 0.95)
           }
 
+          // MARK: - Document Picker Helper
+          struct DocumentPicker: UIViewControllerRepresentable {
+              var allowedUTIs: [UTType]
+              var onPick: (URL) -> Void
+
+              func makeUIViewController(context: Context) -> UIDocumentPickerViewController {
+                  let picker = UIDocumentPickerViewController(forOpeningContentTypes: allowedUTIs, asCopy: true)
+                  picker.delegate = context.coordinator
+                  return picker
+              }
+
+              func updateUIViewController(_ uiViewController: UIDocumentPickerViewController, context: Context) {}
+
+              func makeCoordinator() -> Coordinator {
+                  Coordinator(self)
+              }
+
+              class Coordinator: NSObject, UIDocumentPickerDelegate {
+                  var parent: DocumentPicker
+                  init(_ parent: DocumentPicker) { self.parent = parent }
+
+                  func documentPicker(_ controller: UIDocumentPickerViewController, didPickDocumentsAt urls: [URL]) {
+                      if let url = urls.first {
+                          parent.onPick(url)
+                      }
+                  }
+              }
+          }
+
+          // MARK: - Main ContentView
           struct ContentView: View {
               @State private var selectedTab = 0
               @State private var searchText = ""
@@ -121,9 +154,12 @@ jobs:
                   AppItem(name: "Drafts", bundleID: "com.agiletortoise.Drafts5", version: "35.1", size: "55 MB", iconURL: "", downloadURL: "https://fastsign.dev/apps/drafts.ipa")
               ]
               
-              @State private var libraryApps: [AppItem] = []
+              @State private var libraryApps: [AppItem] = [
+                  AppItem(name: "Textastic", bundleID: "com.textasticapp.textastic", version: "10.2", size: "38.5 MB", iconURL: "", downloadURL: "")
+              ]
+              
               @State private var sourcesList: [AppSource] = [
-                  AppSource(name: "FastSign Repo", url: "https://fastsign.dev/repo.json", appCount: 7)
+                  AppSource(name: "FastSign Main Repo", url: "https://fastsign.dev/repo.json", appCount: 7)
               ]
               
               @State private var showSourcesModal = false
@@ -149,6 +185,7 @@ jobs:
 
                       VStack(spacing: 0) {
                           if selectedTab == 0 {
+                              // التطبيقات
                               NavigationView {
                                   ZStack {
                                       Color.darkBg.ignoresSafeArea()
@@ -214,6 +251,7 @@ jobs:
                                   .navigationBarTitle("التطبيقات", displayMode: .large)
                               }
                           } else if selectedTab == 1 {
+                              // توقيع
                               NavigationView {
                                   ZStack {
                                       Color.darkBg.ignoresSafeArea()
@@ -273,6 +311,7 @@ jobs:
                                   .navigationBarTitle("توقيع", displayMode: .large)
                               }
                           } else if selectedTab == 2 {
+                              // الإعدادات
                               NavigationView {
                                   ZStack {
                                       Color.darkBg.ignoresSafeArea()
@@ -282,6 +321,7 @@ jobs:
                                                   HStack {
                                                       Text("الشهادة").foregroundColor(.white)
                                                       Spacer()
+                                                      Text(isCertValid ? "مفعلة" : "غير مفعلة").foregroundColor(isCertValid ? .green : .red)
                                                       Image(systemName: "chevron.left").foregroundColor(.gray)
                                                   }
                                               }
@@ -310,6 +350,7 @@ jobs:
                                   .navigationBarTitle("الإعدادات", displayMode: .large)
                               }
                           } else {
+                              // حول
                               NavigationView {
                                   ZStack {
                                       Color.darkBg.ignoresSafeArea()
@@ -390,6 +431,7 @@ jobs:
                           }
                       }
 
+                      // شريط الحاويات السفلي
                       HStack {
                           TabBarButton(icon: "square.stack.3d.up.fill", title: "التطبيقات", tag: 0, selection: $selectedTab)
                           TabBarButton(icon: "signature", title: "توقيع", tag: 1, selection: $selectedTab)
@@ -422,21 +464,21 @@ jobs:
                       )
                   }
                   .sheet(item: $selectedAppToEdit) { app in
-                      EditAppModalView(app: app)
+                      EditAppModalView(app: app, isCertValid: isCertValid)
                   }
-                  .fileImporter(isPresented: $showIPAPicker, allowedContentTypes: [.item, .data]) { result in
-                      if case .success(let url) = result {
-                          let newApp = AppItem(name: url.deletingPathExtension().lastPathComponent, bundleID: "com.srt.custom", version: "1.0", size: "25 MB", iconURL: "", downloadURL: url.absoluteString)
+                  .sheet(isPresented: $showIPAPicker) {
+                      DocumentPicker(allowedUTIs: [.item, .data]) { url in
+                          let newApp = AppItem(name: url.deletingPathExtension().lastPathComponent, bundleID: "com.srt.custom", version: "1.0", size: "30 MB", iconURL: "", downloadURL: url.absoluteString)
                           libraryApps.append(newApp)
                       }
                   }
-                  .fileImporter(isPresented: $showP12Picker, allowedContentTypes: [.item, .data]) { result in
-                      if case .success(let url) = result {
+                  .sheet(isPresented: $showP12Picker) {
+                      DocumentPicker(allowedUTIs: [.item, .data]) { url in
                           p12Name = url.lastPathComponent
                       }
                   }
-                  .fileImporter(isPresented: $showProvPicker, allowedContentTypes: [.item, .data]) { result in
-                      if case .success(let url) = result {
+                  .sheet(isPresented: $showProvPicker) {
+                      DocumentPicker(allowedUTIs: [.item, .data]) { url in
                           provName = url.lastPathComponent
                       }
                   }
@@ -563,7 +605,9 @@ jobs:
                                   .cornerRadius(14)
 
                               Button("حفظ وتفعيل الشهادة") {
-                                  isCertValid = true
+                                  if !passwordInput.isEmpty && p12Name != "لم يتم الرفع" {
+                                      isCertValid = true
+                                  }
                                   dismiss()
                               }
                               .fontWeight(.bold)
@@ -584,6 +628,8 @@ jobs:
 
           struct EditAppModalView: View {
               @State var app: AppItem
+              var isCertValid: Bool
+              @State private var statusMsg = ""
               @Environment(\.dismiss) var dismiss
 
               var body: some View {
@@ -596,12 +642,7 @@ jobs:
                                       RoundedRectangle(cornerRadius: 22)
                                           .fill(Color.cardBg)
                                           .frame(width: 80, height: 80)
-                                      Image(systemName: "app.fill").font(.largeTitle).foregroundColor(.gray)
-                                  }
-
-                                  HStack(spacing: 15) {
-                                      Button("الصور") {}.frame(maxWidth: .infinity).padding().background(Color.primaryBlue).foregroundColor(.white).cornerRadius(14)
-                                      Button("الملفات") {}.frame(maxWidth: .infinity).padding().background(Color.green).foregroundColor(.white).cornerRadius(14)
+                                      Text(String(app.name.prefix(1))).font(.title).bold().foregroundColor(.white)
                                   }
 
                                   VStack(spacing: 12) {
@@ -615,22 +656,38 @@ jobs:
                                           .padding().background(Color.cardBg).foregroundColor(.white).cornerRadius(12)
                                   }
 
-                                  HStack(spacing: 15) {
-                                      Button("توقيع وثبيت") { dismiss() }
-                                          .font(.bold(.body)())
-                                          .frame(maxWidth: .infinity)
-                                          .padding()
-                                          .background(Color.primaryBlue)
-                                          .foregroundColor(.white)
-                                          .cornerRadius(16)
+                                  if !statusMsg.isEmpty {
+                                      Text(statusMsg).font(.subheadline).foregroundColor(.green)
+                                  }
 
-                                      Button("توقيع فقط") { dismiss() }
-                                          .font(.bold(.body)())
-                                          .frame(maxWidth: .infinity)
-                                          .padding()
-                                          .background(Color.primaryPurple)
-                                          .foregroundColor(.white)
-                                          .cornerRadius(16)
+                                  HStack(spacing: 15) {
+                                      Button("توقيع وتثبيت") {
+                                          if isCertValid {
+                                              statusMsg = "تم توقيع التطبيق وتجهيز رابط التثبيت!"
+                                          } else {
+                                              statusMsg = "يرجى رفع ملف الشهادة وكلمة السر من الإعدادات أولاً."
+                                          }
+                                      }
+                                      .font(.bold(.body)())
+                                      .frame(maxWidth: .infinity)
+                                      .padding()
+                                      .background(Color.primaryBlue)
+                                      .foregroundColor(.white)
+                                      .cornerRadius(16)
+
+                                      Button("توقيع فقط") {
+                                          if isCertValid {
+                                              statusMsg = "تم توقيع التطبيق وتصوير IPA جديد."
+                                          } else {
+                                              statusMsg = "يرجى رفع الشهادة أولاً."
+                                          }
+                                      }
+                                      .font(.bold(.body)())
+                                      .frame(maxWidth: .infinity)
+                                      .padding()
+                                      .background(Color.primaryPurple)
+                                      .foregroundColor(.white)
+                                      .cornerRadius(16)
                                   }
                               }
                               .padding()
@@ -676,6 +733,10 @@ jobs:
               <true/>
               <key>LSSupportsOpeningDocumentsInPlace</key>
               <true/>
+              <key>UISupportedInterfaceOrientations</key>
+              <array>
+                  <string>UIInterfaceOrientationPortrait</string>
+              </array>
               <key>UILaunchScreen</key>
               <dict/>
               <key>UIRequiredDeviceCapabilities</key>
