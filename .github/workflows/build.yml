@@ -87,271 +87,260 @@ jobs:
               @State private var isCertValid = false
               @State private var zsignLog = "جاهز للتوقيع باستخدام zsign..."
 
-              init() {
-                  UITabBar.appearance().isHidden = true
-              }
-
               var body: some View {
                   ZStack(alignment: .bottom) {
-                      TabView(selection: $selectedTab) {
-                          // 1. App Store (التطبيقات)
-                          NavigationView {
-                              VStack(spacing: 12) {
-                                  HStack(spacing: 10) {
-                                      Button(action: { showSourcesModal = true }) {
-                                          HStack {
-                                              Image(systemName: "plus.circle.fill")
-                                              Text("إضافة سورس")
+                      Group {
+                          if selectedTab == 0 {
+                              // App Store
+                              NavigationView {
+                                  VStack(spacing: 12) {
+                                      HStack(spacing: 10) {
+                                          Button(action: { showSourcesModal = true }) {
+                                              HStack {
+                                                  Image(systemName: "plus.circle.fill")
+                                                  Text("إضافة سورس")
+                                              }
+                                              .font(.system(size: 15, weight: .bold))
+                                              .padding(.horizontal, 14)
+                                              .padding(.vertical, 12)
+                                              .background(Color.blue)
+                                              .foregroundColor(.white)
+                                              .cornerRadius(14)
                                           }
-                                          .font(.system(size: 15, weight: .bold))
-                                          .padding(.horizontal, 14)
-                                          .padding(.vertical, 12)
-                                          .background(Color.blue)
-                                          .foregroundColor(.white)
+
+                                          HStack {
+                                              Image(systemName: "magnifyingglass").foregroundColor(.gray)
+                                              TextField("بحث في التطبيقات...", text: $searchText)
+                                                  .font(.system(size: 15))
+                                                  .foregroundColor(.white)
+                                          }
+                                          .padding(12)
+                                          .background(Color(white: 0.15))
                                           .cornerRadius(14)
                                       }
+                                      .padding(.horizontal)
+                                      .padding(.top, 10)
 
-                                      HStack {
-                                          Image(systemName: "magnifyingglass")
-                                              .foregroundColor(.gray)
-                                          TextField("بحث في التطبيقات...", text: $searchText)
-                                              .font(.system(size: 15))
-                                              .foregroundColor(.white)
-                                      }
-                                      .padding(12)
-                                      .background(Color(white: 0.15))
-                                      .cornerRadius(14)
-                                  }
-                                  .padding(.horizontal)
-                                  .padding(.top, 10)
-
-                                  if filteredApps.isEmpty {
-                                      Spacer()
-                                      VStack(spacing: 15) {
-                                          Image(systemName: "square.stack.3d.up.slash")
-                                              .font(.system(size: 65))
-                                              .foregroundColor(.gray)
-                                          Text("قائمة التطبيقات فارغة")
-                                              .font(.title3).bold().foregroundColor(.white)
-                                          Text("اضغط على 'إضافة سورس' لإدخال رابط JSON وجلب التطبيقات.")
-                                              .font(.subheadline).foregroundColor(.gray)
-                                              .multilineTextAlignment(.center).padding(.horizontal, 40)
-                                      }
-                                      Spacer()
-                                  } else {
-                                      List(filteredApps) { app in
-                                          HStack(spacing: 14) {
-                                              VStack(alignment: .leading, spacing: 6) {
-                                                  Text(app.name).font(.system(size: 17, weight: .semibold)).foregroundColor(.white)
-                                                  Text("\(app.version) • \(app.size)").font(.system(size: 14)).foregroundColor(.gray)
-                                              }
-                                              Spacer()
-                                              Button(action: {
-                                                  if !libraryApps.contains(where: { $0.id == app.id }) {
-                                                      libraryApps.append(app)
-                                                  }
-                                                  selectedTab = 3
-                                              }) {
-                                                  Text("تحميل").font(.system(size: 15, weight: .bold)).padding(.horizontal, 18).padding(.vertical, 9).background(Color.blue).foregroundColor(.white).cornerRadius(20)
-                                              }
+                                      if filteredApps.isEmpty {
+                                          Spacer()
+                                          VStack(spacing: 15) {
+                                              Image(systemName: "square.stack.3d.up.slash")
+                                                  .font(.system(size: 65))
+                                                  .foregroundColor(.gray)
+                                              Text("قائمة التطبيقات فارغة").font(.title3).bold().foregroundColor(.white)
+                                              Text("اضغط على 'إضافة سورس' لإدخال رابط JSON وجلب التطبيقات.")
+                                                  .font(.subheadline).foregroundColor(.gray)
+                                                  .multilineTextAlignment(.center).padding(.horizontal, 40)
                                           }
-                                          .listRowBackground(Color.clear)
-                                      }
-                                      .listStyle(PlainListStyle())
-                                  }
-                              }
-                              .padding(.bottom, 90) // مساحة آمنة لكي لا يختفي المحتوى خلف الشريط السفلي
-                              .navigationBarTitle("التطبيقات", displayMode: .large)
-                          }
-                          .tag(0)
-
-                          // 2. توقيع (zsign Engine)
-                          NavigationView {
-                              VStack(spacing: 20) {
-                                  VStack(spacing: 15) {
-                                      Image(systemName: "signature")
-                                          .font(.system(size: 60))
-                                          .foregroundColor(.blue)
-                                      Text("أداة التوقيع (zsign)")
-                                          .font(.title2).bold()
-                                      Text(zsignLog)
-                                          .font(.subheadline)
-                                          .foregroundColor(isCertValid ? .green : .orange)
-                                          .multilineTextAlignment(.center)
-                                          .padding(.horizontal)
-                                  }
-                                  .padding()
-                                  .frame(maxWidth: .infinity)
-                                  .background(Color(white: 0.12))
-                                  .cornerRadius(20)
-                                  .padding(.horizontal)
-
-                                  Button(action: { showCertModal = true }) {
-                                      HStack {
-                                          Image(systemName: "key.fill")
-                                          Text("إعدادات الشهادة (.p12)")
-                                      }
-                                      .font(.system(size: 16, weight: .bold))
-                                      .frame(maxWidth: .infinity)
-                                      .padding(.vertical, 14)
-                                      .background(Color.blue)
-                                      .foregroundColor(.white)
-                                      .cornerRadius(16)
-                                  }
-                                  .padding(.horizontal)
-
-                                  Button(action: {
-                                      if isCertValid {
-                                          zsignLog = "تم تنفيذ أداة zsign وتوقيع الملف بنجاح!"
+                                          Spacer()
                                       } else {
-                                          zsignLog = "الرجاء رفع الشهادة وكلمة السر أولاً."
+                                          List(filteredApps) { app in
+                                              HStack(spacing: 14) {
+                                                  VStack(alignment: .leading, spacing: 6) {
+                                                      Text(app.name).font(.system(size: 17, weight: .semibold)).foregroundColor(.white)
+                                                      Text("\(app.version) • \(app.size)").font(.system(size: 14)).foregroundColor(.gray)
+                                                  }
+                                                  Spacer()
+                                                  Button(action: {
+                                                      if !libraryApps.contains(where: { $0.id == app.id }) {
+                                                          libraryApps.append(app)
+                                                      }
+                                                      selectedTab = 3
+                                                  }) {
+                                                      Text("تحميل").font(.system(size: 15, weight: .bold)).padding(.horizontal, 18).padding(.vertical, 9).background(Color.blue).foregroundColor(.white).cornerRadius(20)
+                                                  }
+                                              }
+                                              .listRowBackground(Color.clear)
+                                          }
+                                          .listStyle(PlainListStyle())
                                       }
-                                  }) {
-                                      Text("بدء التوقيع الآن")
+                                  }
+                                  .padding(.bottom, 100)
+                                  .navigationBarTitle("التطبيقات", displayMode: .large)
+                              }
+                          } else if selectedTab == 1 {
+                              // توقيع
+                              NavigationView {
+                                  VStack(spacing: 20) {
+                                      VStack(spacing: 15) {
+                                          Image(systemName: "signature")
+                                              .font(.system(size: 60))
+                                              .foregroundColor(.blue)
+                                          Text("أداة التوقيع (zsign)").font(.title2).bold()
+                                          Text(zsignLog)
+                                              .font(.subheadline)
+                                              .foregroundColor(isCertValid ? .green : .orange)
+                                              .multilineTextAlignment(.center)
+                                              .padding(.horizontal)
+                                      }
+                                      .padding()
+                                      .frame(maxWidth: .infinity)
+                                      .background(Color(white: 0.12))
+                                      .cornerRadius(20)
+                                      .padding(.horizontal)
+
+                                      Button(action: { showCertModal = true }) {
+                                          HStack {
+                                              Image(systemName: "key.fill")
+                                              Text("إعدادات الشهادة (.p12)")
+                                          }
                                           .font(.system(size: 16, weight: .bold))
                                           .frame(maxWidth: .infinity)
                                           .padding(.vertical, 14)
-                                          .background(isCertValid ? Color.green : Color.gray)
+                                          .background(Color.blue)
                                           .foregroundColor(.white)
                                           .cornerRadius(16)
-                                  }
-                                  .padding(.horizontal)
-
-                                  Spacer()
-                              }
-                              .padding(.top, 10)
-                              .padding(.bottom, 90)
-                              .navigationBarTitle("توقيع", displayMode: .large)
-                          }
-                          .tag(1)
-
-                          // 3. الإعدادات
-                          NavigationView {
-                              List {
-                                  Section(header: Text("إدارة الشهادة والتوقيع")) {
-                                      Button(action: { showCertModal = true }) {
-                                          HStack {
-                                              Text("شهادة التوقيع (.p12 & Profile)").font(.system(size: 16))
-                                              Spacer()
-                                              Image(systemName: "chevron.left").foregroundColor(.gray)
-                                          }
-                                          .padding(.vertical, 4).foregroundColor(.white)
-                                      }
-                                  }
-                                  Section(header: Text("معلومات النظام")) {
-                                      HStack {
-                                          Text("إصدار التوافق:")
-                                          Spacer()
-                                          Text("iOS 18+ متوافق").foregroundColor(.green)
-                                      }
-                                  }
-                              }
-                              .padding(.bottom, 90)
-                              .navigationBarTitle("الإعدادات", displayMode: .large)
-                          }
-                          .tag(2)
-
-                          // 4. المكتبة (استيراد الملفات)
-                          NavigationView {
-                              VStack {
-                                  Button(action: { showFileImporter = true }) {
-                                      HStack {
-                                          Image(systemName: "folder.badge.plus")
-                                          Text("إضافة IPA من الملفات")
-                                      }
-                                      .font(.system(size: 16, weight: .bold))
-                                      .frame(maxWidth: .infinity)
-                                      .padding(.vertical, 14)
-                                      .background(Color.green)
-                                      .foregroundColor(.white)
-                                      .cornerRadius(16)
-                                  }
-                                  .padding()
-
-                                  if libraryApps.isEmpty {
-                                      Spacer()
-                                      Text("المكتبة فارغة، أضف ملف IPA من الجهاز.").foregroundColor(.gray)
-                                      Spacer()
-                                  } else {
-                                      List(libraryApps) { app in
-                                          HStack {
-                                              VStack(alignment: .leading, spacing: 4) {
-                                                  Text(app.name).font(.system(size: 16, weight: .bold)).foregroundColor(.white)
-                                                  Text(app.bundleID).font(.system(size: 12)).foregroundColor(.gray)
-                                              }
-                                              Spacer()
-                                              Button("توقيع بـ zsign") {
-                                                  selectedTab = 1
-                                              }
-                                              .font(.system(size: 13, weight: .bold))
-                                              .padding(.horizontal, 12)
-                                              .padding(.vertical, 6)
-                                              .background(Color.blue)
-                                              .foregroundColor(.white)
-                                              .cornerRadius(12)
-                                          }
-                                          .listRowBackground(Color.clear)
-                                      }
-                                      .listStyle(PlainListStyle())
-                                  }
-                              }
-                              .padding(.bottom, 90)
-                              .navigationBarTitle("المكتبة", displayMode: .large)
-                          }
-                          .tag(3)
-
-                          // 5. حول
-                          NavigationView {
-                              ScrollView {
-                                  VStack(spacing: 25) {
-                                      ZStack {
-                                          RoundedRectangle(cornerRadius: 30)
-                                              .fill(LinearGradient(gradient: Gradient(colors: [.blue, .purple]), startPoint: .topLeading, endPoint: .bottomTrailing))
-                                              .frame(width: 110, height: 110)
-                                          Text("SRT").font(.system(size: 40, weight: .black)).foregroundColor(.white)
-                                      }
-                                      .padding(.top, 30)
-
-                                      VStack(spacing: 8) {
-                                          Text("SRT STORE").font(.system(size: 30, weight: .bold))
-                                          Text("المطور: موحي العماري").font(.title3).foregroundColor(.gray)
-                                      }
-
-                                      VStack(spacing: 14) {
-                                          Button(action: {
-                                              if let url = URL(string: "https://t.me/evv2g") { UIApplication.shared.open(url) }
-                                          }) {
-                                              HStack {
-                                                  Image(systemName: "paperplane.fill")
-                                                  Text("تليجرام (evv2g)")
-                                              }
-                                              .font(.system(size: 16, weight: .semibold))
-                                              .frame(maxWidth: .infinity).padding(.vertical, 14).background(Color.blue).foregroundColor(.white).cornerRadius(20)
-                                          }
-
-                                          Button(action: {
-                                              if let url = URL(string: "https://www.tiktok.com/@l6899l?_r=1&_t=ZS-9AkraJK00Zj") { UIApplication.shared.open(url) }
-                                          }) {
-                                              HStack {
-                                                  Image(systemName: "video.fill")
-                                                  Text("تيك توك")
-                                              }
-                                              .font(.system(size: 16, weight: .semibold))
-                                              .frame(maxWidth: .infinity).padding(.vertical, 14).background(Color(white: 0.2)).foregroundColor(.white).cornerRadius(20)
-                                          }
                                       }
                                       .padding(.horizontal)
-                                  }
-                                  .padding(.bottom, 90)
-                              }
-                              .navigationBarTitle("حول", displayMode: .large)
-                          }
-                          .tag(4)
-                      }
-                      .accentColor(.blue)
-                      .preferredColorScheme(.dark)
 
-                      // شريط تنقل سفلي عائم بتصميم مرتب ومريح
+                                      Button(action: {
+                                          if isCertValid {
+                                              zsignLog = "تم تنفيذ أداة zsign وتوقيع الملف بنجاح!"
+                                          } else {
+                                              zsignLog = "الرجاء رفع الشهادة وكلمة السر أولاً."
+                                          }
+                                      }) {
+                                          Text("بدء التوقيع الآن")
+                                              .font(.system(size: 16, weight: .bold))
+                                              .frame(maxWidth: .infinity)
+                                              .padding(.vertical, 14)
+                                              .background(isCertValid ? Color.green : Color.gray)
+                                              .foregroundColor(.white)
+                                              .cornerRadius(16)
+                                      }
+                                      .padding(.horizontal)
+
+                                      Spacer()
+                                  }
+                                  .padding(.top, 10)
+                                  .padding(.bottom, 100)
+                                  .navigationBarTitle("توقيع", displayMode: .large)
+                              }
+                          } else if selectedTab == 2 {
+                              // الإعدادات
+                              NavigationView {
+                                  List {
+                                      Section(header: Text("إدارة الشهادة والتوقيع")) {
+                                          Button(action: { showCertModal = true }) {
+                                              HStack {
+                                                  Text("شهادة التوقيع (.p12 & Profile)").font(.system(size: 16))
+                                                  Spacer()
+                                                  Image(systemName: "chevron.left").foregroundColor(.gray)
+                                              }
+                                              .padding(.vertical, 4).foregroundColor(.white)
+                                          }
+                                      }
+                                      Section(header: Text("معلومات النظام")) {
+                                          HStack {
+                                              Text("إصدار التوافق:")
+                                              Spacer()
+                                              Text("iOS 18+ متوافق").foregroundColor(.green)
+                                          }
+                                      }
+                                  }
+                                  .padding(.bottom, 100)
+                                  .navigationBarTitle("الإعدادات", displayMode: .large)
+                              }
+                          } else if selectedTab == 3 {
+                              // المكتبة
+                              NavigationView {
+                                  VStack {
+                                      Button(action: { showFileImporter = true }) {
+                                          HStack {
+                                              Image(systemName: "folder.badge.plus")
+                                              Text("إضافة IPA من الملفات")
+                                          }
+                                          .font(.system(size: 16, weight: .bold))
+                                          .frame(maxWidth: .infinity)
+                                          .padding(.vertical, 14)
+                                          .background(Color.green)
+                                          .foregroundColor(.white)
+                                          .cornerRadius(16)
+                                      }
+                                      .padding()
+
+                                      if libraryApps.isEmpty {
+                                          Spacer()
+                                          Text("المكتبة فارغة، أضف ملف IPA من الجهاز.").foregroundColor(.gray)
+                                          Spacer()
+                                      } else {
+                                          List(libraryApps) { app in
+                                              HStack {
+                                                  VStack(alignment: .leading, spacing: 4) {
+                                                      Text(app.name).font(.system(size: 16, weight: .bold)).foregroundColor(.white)
+                                                      Text(app.bundleID).font(.system(size: 12)).foregroundColor(.gray)
+                                                  }
+                                                  Spacer()
+                                                  Button("توقيع بـ zsign") {
+                                                      selectedTab = 1
+                                                  }
+                                                  .font(.system(size: 13, weight: .bold))
+                                                  .padding(.horizontal, 12)
+                                                  .padding(.vertical, 6)
+                                                  .background(Color.blue)
+                                                  .foregroundColor(.white)
+                                                  .cornerRadius(12)
+                                              }
+                                              .listRowBackground(Color.clear)
+                                          }
+                                          .listStyle(PlainListStyle())
+                                      }
+                                  }
+                                  .padding(.bottom, 100)
+                                  .navigationBarTitle("المكتبة", displayMode: .large)
+                              }
+                          } else {
+                              // حول
+                              NavigationView {
+                                  ScrollView {
+                                      VStack(spacing: 25) {
+                                          ZStack {
+                                              RoundedRectangle(cornerRadius: 30)
+                                                  .fill(LinearGradient(gradient: Gradient(colors: [.blue, .purple]), startPoint: .topLeading, endPoint: .bottomTrailing))
+                                                  .frame(width: 110, height: 110)
+                                              Text("SRT").font(.system(size: 40, weight: .black)).foregroundColor(.white)
+                                          }
+                                          .padding(.top, 30)
+
+                                          VStack(spacing: 8) {
+                                              Text("SRT STORE").font(.system(size: 30, weight: .bold))
+                                              Text("المطور: موحي العماري").font(.title3).foregroundColor(.gray)
+                                          }
+
+                                          VStack(spacing: 14) {
+                                              Button(action: {
+                                                  if let url = URL(string: "https://t.me/evv2g") { UIApplication.shared.open(url) }
+                                              }) {
+                                                  HStack {
+                                                      Image(systemName: "paperplane.fill")
+                                                      Text("تليجرام (evv2g)")
+                                                  }
+                                                  .font(.system(size: 16, weight: .semibold))
+                                                  .frame(maxWidth: .infinity).padding(.vertical, 14).background(Color.blue).foregroundColor(.white).cornerRadius(20)
+                                              }
+
+                                              Button(action: {
+                                                  if let url = URL(string: "https://www.tiktok.com/@l6899l?_r=1&_t=ZS-9AkraJK00Zj") { UIApplication.shared.open(url) }
+                                              }) {
+                                                  HStack {
+                                                      Image(systemName: "video.fill")
+                                                      Text("تيك توك")
+                                                  }
+                                                  .font(.system(size: 16, weight: .semibold))
+                                                  .frame(maxWidth: .infinity).padding(.vertical, 14).background(Color(white: 0.2)).foregroundColor(.white).cornerRadius(20)
+                                              }
+                                          }
+                                          .padding(.horizontal)
+                                      }
+                                      .padding(.bottom, 100)
+                                  }
+                                  .navigationBarTitle("حول", displayMode: .large)
+                              }
+                          }
+                      }
+                      .frame(maxWidth: .infinity, maxHeight: .infinity)
+
+                      // شريط تنقل سفلي مستقر
                       HStack {
                           TabBarButton(icon: "square.stack.3d.up.fill", title: "App Store", tag: 0, selection: $selectedTab)
                           TabBarButton(icon: "signature", title: "توقيع", tag: 1, selection: $selectedTab)
@@ -368,9 +357,10 @@ jobs:
                               .stroke(Color.white.opacity(0.15), lineWidth: 0.5)
                       )
                       .padding(.horizontal, 16)
-                      .padding(.bottom, 12)
+                      .padding(.bottom, 20)
                   }
-                  .edgesIgnoringSafeArea(.bottom)
+                  .edgesIgnoringSafeArea(.all)
+                  .preferredColorScheme(.dark)
                   .sheet(isPresented: $showSourcesModal) {
                       SourcesModalView(sourcesList: $sourcesList, availableApps: $availableApps)
                   }
@@ -383,7 +373,7 @@ jobs:
                           isCertValid: $isCertValid
                       )
                   }
-                  .fileImporter(isPresented: $showFileImporter, allowedContentTypes: [UTType.item]) { result in
+                  .fileImporter(isPresented: $showFileImporter, allowedContentTypes: [.item, .data]) { result in
                       if case .success(let url) = result {
                           let customApp = AppItem(name: url.lastPathComponent, bundleID: "com.local.app", version: "1.0", size: "30 MB", iconURL: "", downloadURL: url.absoluteString)
                           libraryApps.append(customApp)
@@ -508,9 +498,9 @@ jobs:
           _ = UIApplicationMain(CommandLine.argc, CommandLine.unsafeArgv, nil, NSStringFromClass(AppDelegate.self))
           EOF
 
-          # رفع إصدار الحد الأدنى إلى iOS 18.0 للتوافق مع الأجهزة الحديثة
           xcrun --sdk iphoneos swiftc -target arm64-apple-ios18.0 main.swift -o build/Payload/${APP_NAME}.app/${APP_NAME}
 
+          # بناء ملف Info.plist شاملاً أذونات الأجهزة المستهدفة والملفات والشبكة
           cat << 'EOF' > build/Payload/${APP_NAME}.app/Info.plist
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -532,6 +522,15 @@ jobs:
               <string>APPL</string>
               <key>MinimumOSVersion</key>
               <string>18.0</string>
+              <key>NSAppTransportSecurity</key>
+              <dict>
+                  <key>NSAllowsArbitraryLoads</key>
+                  <true/>
+              </dict>
+              <key>UIFileSharingEnabled</key>
+              <true/>
+              <key>LSSupportsOpeningDocumentsInPlace</key>
+              <true/>
               <key>UIRequiredDeviceCapabilities</key>
               <array><string>arm64</string></array>
               <key>UIDeviceFamily</key>
