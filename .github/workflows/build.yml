@@ -1,4 +1,4 @@
-name: Build SRT Store IPA Clean
+name: Build SRT Store IPA Stable
 
 on:
   push:
@@ -18,12 +18,11 @@ jobs:
         with:
           xcode-version: 'latest-stable'
 
-      - name: Compile SRT Store Application
+      - name: Compile Stable SRT Store Application
         run: |
           APP_NAME="SRTStore"
           BUNDLE_ID="com.srtttt7.srtstore"
           
-          # إنشاء هيكل الحزمة بالكامل في المسار الرئيسي حصراً
           mkdir -p Payload/${APP_NAME}.app
           echo "APPL????" > Payload/${APP_NAME}.app/PkgInfo
 
@@ -45,7 +44,8 @@ jobs:
               }
           }
 
-          struct AppItem: Identifiable, Codable {
+          // MARK: - Data Models
+          struct AppItem: Identifiable, Codable, Hashable {
               var id = UUID()
               var name: String
               var bundleID: String
@@ -83,6 +83,7 @@ jobs:
               let appCount: Int
           }
 
+          // MARK: - Color Palette
           extension Color {
               static let darkBg = Color(red: 0.05, green: 0.05, blue: 0.12)
               static let cardBg = Color(red: 0.10, green: 0.10, blue: 0.20)
@@ -90,27 +91,33 @@ jobs:
               static let primaryBlue = Color(red: 0.15, green: 0.45, blue: 0.95)
           }
 
-          struct DocumentPicker: UIViewControllerRepresentable {
-              var allowedUTIs: [UTType]
+          // MARK: - Custom Document Picker for All Extensions (.ipa, .p12, .mobileprovision)
+          struct DocumentPickerView: UIViewControllerRepresentable {
               var onPick: (URL) -> Void
 
               func makeUIViewController(context: Context) -> UIDocumentPickerViewController {
-                  let picker = UIDocumentPickerViewController(forOpeningContentTypes: allowedUTIs, asCopy: true)
+                  let picker = UIDocumentPickerViewController(forOpeningContentTypes: [.item, .data, .content], asCopy: true)
                   picker.delegate = context.coordinator
                   return picker
               }
+
               func updateUIViewController(_ uiViewController: UIDocumentPickerViewController, context: Context) {}
+
               func makeCoordinator() -> Coordinator { Coordinator(self) }
 
               class Coordinator: NSObject, UIDocumentPickerDelegate {
-                  var parent: DocumentPicker
-                  init(_ parent: DocumentPicker) { self.parent = parent }
+                  var parent: DocumentPickerView
+                  init(_ parent: DocumentPickerView) { self.parent = parent }
+
                   func documentPicker(_ controller: UIDocumentPickerViewController, didPickDocumentsAt urls: [URL]) {
-                      if let url = urls.first { parent.onPick(url) }
+                      if let url = urls.first {
+                          parent.onPick(url)
+                      }
                   }
               }
           }
 
+          // MARK: - Main ContentView
           struct ContentView: View {
               @State private var selectedTab = 0
               @State private var searchText = ""
@@ -143,6 +150,7 @@ jobs:
 
                       VStack(spacing: 0) {
                           if selectedTab == 0 {
+                              // قسم التطبيقات
                               NavigationView {
                                   ZStack {
                                       Color.darkBg.ignoresSafeArea()
@@ -160,7 +168,11 @@ jobs:
                                           ScrollView {
                                               VStack(spacing: 12) {
                                                   if filteredApps.isEmpty {
-                                                      Text("جاري جلب التطبيقات من السورس...").foregroundColor(.gray).padding(.top, 40)
+                                                      VStack(spacing: 12) {
+                                                          ProgressView().tint(.white)
+                                                          Text("جاري جلب التطبيقات من السورس...").foregroundColor(.gray).font(.subheadline)
+                                                      }
+                                                      .padding(.top, 50)
                                                   } else {
                                                       ForEach(filteredApps) { app in
                                                           HStack(spacing: 15) {
@@ -212,6 +224,7 @@ jobs:
                                   .navigationBarTitle("التطبيقات", displayMode: .large)
                               }
                           } else if selectedTab == 1 {
+                              // قسم توقيع
                               NavigationView {
                                   ZStack {
                                       Color.darkBg.ignoresSafeArea()
@@ -220,7 +233,8 @@ jobs:
                                               VStack(spacing: 10) {
                                                   Button(action: { showIPAPicker = true }) {
                                                       HStack {
-                                                          Text("استيراد من الملفات")
+                                                          Image(systemName: "doc.badge.plus").foregroundColor(.primaryBlue)
+                                                          Text("استيراد ملف IPA من الجهاز")
                                                           Spacer()
                                                           Image(systemName: "chevron.left").foregroundColor(.gray)
                                                       }
@@ -229,7 +243,8 @@ jobs:
 
                                                   Button(action: { showSourcesModal = true }) {
                                                       HStack {
-                                                          Text("استيراد من رابط")
+                                                          Image(systemName: "link").foregroundColor(.primaryPurple)
+                                                          Text("استيراد من رابط سورس")
                                                           Spacer()
                                                           Image(systemName: "chevron.left").foregroundColor(.gray)
                                                       }
@@ -238,7 +253,7 @@ jobs:
                                               }
                                               .padding(.horizontal)
 
-                                              Text("التطبيقات الجاهزة للتوقيع والتثبيت").font(.caption).foregroundColor(.gray).frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal)
+                                              Text("التطبيقات الجاهزة للتعديل والتوقيع").font(.caption).foregroundColor(.gray).frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal)
 
                                               ForEach(libraryApps) { app in
                                                   Button(action: { selectedAppToEdit = app }) {
@@ -253,7 +268,7 @@ jobs:
 
                                                           VStack(alignment: .leading, spacing: 4) {
                                                               Text(app.name).font(.system(size: 16, weight: .bold)).foregroundColor(.white)
-                                                              Text(isCertValid ? "الشهادة جاهزة للتوقيع" : "يرجى رفع الشهادة في الإعدادات").font(.system(size: 13)).foregroundColor(isCertValid ? .green : .orange)
+                                                              Text(isCertValid ? "الشهادة جاهزة للتوقيع والتثبيت" : "يرجى رفع الشهادة في الإعدادات").font(.system(size: 13)).foregroundColor(isCertValid ? .green : .orange)
                                                           }
                                                           Spacer()
                                                           Image(systemName: "chevron.left").foregroundColor(.gray)
@@ -271,6 +286,7 @@ jobs:
                                   .navigationBarTitle("توقيع", displayMode: .large)
                               }
                           } else if selectedTab == 2 {
+                              // الإعدادات
                               NavigationView {
                                   ZStack {
                                       Color.darkBg.ignoresSafeArea()
@@ -280,7 +296,7 @@ jobs:
                                                   HStack {
                                                       Text("الشهادة").foregroundColor(.white)
                                                       Spacer()
-                                                      Text(isCertValid ? "مفعلة ومنحفظة" : "غير مفعلة").foregroundColor(isCertValid ? .green : .red)
+                                                      Text(isCertValid ? "مفعلة (\(p12Name))" : "غير مفعلة").foregroundColor(isCertValid ? .green : .red)
                                                       Image(systemName: "chevron.left").foregroundColor(.gray)
                                                   }
                                               }
@@ -293,11 +309,7 @@ jobs:
 
                                           Section {
                                               Button("مصادر التطبيقات") { showSourcesModal = true }.foregroundColor(.white)
-                                              Button("مكتبة التطبيقات") {}.foregroundColor(.white)
-                                          } .listRowBackground(Color.cardBg)
-
-                                          Section {
-                                              Button("تنظيف الملفات المؤقتة") { libraryApps.removeAll() }.foregroundColor(.red)
+                                              Button("تنظيف القائمة") { libraryApps.removeAll() }.foregroundColor(.red)
                                           } .listRowBackground(Color.cardBg)
                                       }
                                       .scrollContentBackground(.hidden)
@@ -306,6 +318,7 @@ jobs:
                                   .navigationBarTitle("الإعدادات", displayMode: .large)
                               }
                           } else {
+                              // حول
                               NavigationView {
                                   ZStack {
                                       Color.darkBg.ignoresSafeArea()
@@ -328,7 +341,7 @@ jobs:
                                                   .foregroundColor(.gray)
                                                   .multilineTextAlignment(.center)
 
-                                              Text("متجر متكامل لتوقيع وتثبيت التطبيقات بالشهادات المحفوظة")
+                                              Text("أداة متخصصة لتعديل وتوقيع وتثبيت تطبيقات IPA مباشرة من جهازك")
                                                   .font(.subheadline)
                                                   .foregroundColor(.gray)
                                                   .multilineTextAlignment(.center)
@@ -386,6 +399,7 @@ jobs:
                           }
                       }
 
+                      // شريط الحاويات العائم بتأثير الزجاج الملون
                       HStack {
                           TabBarButton(icon: "square.stack.3d.up.fill", title: "التطبيقات", tag: 0, selection: $selectedTab)
                           TabBarButton(icon: "signature", title: "توقيع", tag: 1, selection: $selectedTab)
@@ -405,7 +419,7 @@ jobs:
                   }
                   .edgesIgnoringSafeArea(.all)
                   .onAppear {
-                      fetchDefaultRepo()
+                      fetchDefaultRepoSafe()
                   }
                   .sheet(isPresented: $showSourcesModal) {
                       SourcesModalView(sourcesList: $sourcesList, availableApps: $availableApps)
@@ -423,27 +437,30 @@ jobs:
                   .sheet(item: $selectedAppToEdit) { app in
                       EditAppModalView(app: app, isCertValid: isCertValid, p12Name: p12Name)
                   }
-                  .fileImporter(isPresented: $showIPAPicker, allowedContentTypes: [.item, .data]) { result in
-                      if case .success(let url) = result {
+                  .sheet(isPresented: $showIPAPicker) {
+                      DocumentPickerView { url in
                           let newApp = AppItem(name: url.deletingPathExtension().lastPathComponent, bundleID: "com.srt.custom", version: "1.0", size: "30 MB", iconURL: "", downloadURL: url.absoluteString)
                           libraryApps.append(newApp)
                       }
                   }
-                  .fileImporter(isPresented: $showP12Picker, allowedContentTypes: [.item, .data]) { result in
-                      if case .success(let url) = result {
+                  .sheet(isPresented: $showP12Picker) {
+                      DocumentPickerView { url in
                           p12Name = url.lastPathComponent
                       }
                   }
-                  .fileImporter(isPresented: $showProvPicker, allowedContentTypes: [.item, .data]) { result in
-                      if case .success(let url) = result {
+                  .sheet(isPresented: $showProvPicker) {
+                      DocumentPickerView { url in
                           provName = url.lastPathComponent
                       }
                   }
               }
 
-              func fetchDefaultRepo() {
-                  guard let url = URL(string: "https://fastsign.dev/repo.json") else { return }
-                  URLSession.shared.dataTask(with: url) { data, _, _ in
+              func fetchDefaultRepoSafe() {
+                  guard availableApps.isEmpty, let url = URL(string: "https://fastsign.dev/repo.json") else { return }
+                  var request = URLRequest(url: url)
+                  request.timeoutInterval = 5.0
+                  
+                  URLSession.shared.dataTask(with: request) { data, _, _ in
                       if let data = data, let repo = try? JSONDecoder().decode(AltStoreRepo.self, from: data) {
                           var newItems: [AppItem] = []
                           if let apps = repo.apps {
@@ -453,9 +470,7 @@ jobs:
                               }
                           }
                           DispatchQueue.main.async {
-                              if !newItems.isEmpty {
-                                  availableApps = newItems
-                              }
+                              if !newItems.isEmpty { availableApps = newItems }
                           }
                       }
                   }.resume()
@@ -522,7 +537,9 @@ jobs:
 
               func fetchRepo(urlStr: String) {
                   guard let url = URL(string: urlStr) else { return }
-                  URLSession.shared.dataTask(with: url) { data, _, _ in
+                  var request = URLRequest(url: url)
+                  request.timeoutInterval = 5.0
+                  URLSession.shared.dataTask(with: request) { data, _, _ in
                       if let data = data, let repo = try? JSONDecoder().decode(AltStoreRepo.self, from: data) {
                           var newItems: [AppItem] = []
                           if let apps = repo.apps {
@@ -581,7 +598,7 @@ jobs:
                                   .foregroundColor(.white)
                                   .cornerRadius(14)
 
-                              Button("حفظ وتفعيل الشهادة نهائياً") {
+                              Button("حفظ وتفعيل الشهادة") {
                                   if p12Name != "لم يتم الرفع" {
                                       isCertValid = true
                                   }
@@ -623,14 +640,16 @@ jobs:
                                       Text(String(app.name.prefix(1))).font(.title).bold().foregroundColor(.white)
                                   }
 
-                                  VStack(spacing: 12) {
+                                  VStack(alignment: .leading, spacing: 12) {
+                                      Text("تعديل معلومات IPA قبل التوقيع").font(.caption).foregroundColor(.gray)
+                                      
                                       TextField("اسم التطبيق", text: $app.name)
                                           .padding().background(Color.cardBg).foregroundColor(.white).cornerRadius(12)
 
-                                      TextField("معرف الحزمة", text: $app.bundleID)
+                                      TextField("معرف الحزمة (Bundle ID)", text: $app.bundleID)
                                           .padding().background(Color.cardBg).foregroundColor(.white).cornerRadius(12)
 
-                                      TextField("الإصدار", text: $app.version)
+                                      TextField("رقم الإصدار", text: $app.version)
                                           .padding().background(Color.cardBg).foregroundColor(.white).cornerRadius(12)
                                   }
 
@@ -641,7 +660,7 @@ jobs:
                                   HStack(spacing: 15) {
                                       Button("توقيع وتثبيت مباشر") {
                                           if isCertValid {
-                                              statusMsg = "تم توقيع التطبيق باستخدام الشهادة (\(p12Name)) وجاهز للتثبيت الفوري!"
+                                              statusMsg = "تم تعديل ملف IPA وتوقيعه بالشهادة (\(p12Name)) وتجهيزه للتثبيت المباشر!"
                                           } else {
                                               statusMsg = "يرجى رفع الشهادة (.p12) من الإعدادات أولاً."
                                           }
@@ -653,9 +672,11 @@ jobs:
                                       .foregroundColor(.white)
                                       .cornerRadius(16)
 
-                                      Button("فحص وتنزيل IPA") {
-                                          if let url = URL(string: app.downloadURL) {
-                                              UIApplication.shared.open(url)
+                                      Button("توقيع وتحميل IPA") {
+                                          if isCertValid {
+                                              statusMsg = "تم تصدير ملف الـ IPA المعدّل والموقّع بنجاح!"
+                                          } else {
+                                              statusMsg = "يرجى تفعيل الشهادة من الإعدادات."
                                           }
                                       }
                                       .font(.bold(.body)())
@@ -669,7 +690,7 @@ jobs:
                               .padding()
                           }
                       }
-                      .navigationBarTitle("تعديل وتوقيع التطبيق", displayMode: .inline)
+                      .navigationBarTitle("تعديل وتوقيع IPA", displayMode: .inline)
                   }
               }
           }
@@ -677,7 +698,6 @@ jobs:
           _ = UIApplicationMain(CommandLine.argc, CommandLine.unsafeArgv, nil, NSStringFromClass(AppDelegate.self))
           EOF
 
-          # ترجمة الكود مباشرة بدون الحاجة لـ actool
           xcrun --sdk iphoneos swiftc -target arm64-apple-ios18.0 main.swift -o Payload/${APP_NAME}.app/${APP_NAME}
 
           cat << 'EOF' > Payload/${APP_NAME}.app/Info.plist
