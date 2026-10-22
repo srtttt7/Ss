@@ -26,7 +26,6 @@ jobs:
           mkdir -p build/Payload/${APP_NAME}.app
           echo "APPL????" > build/Payload/${APP_NAME}.app/PkgInfo
 
-          # إنشاء مجلد الأيقونات والملفات
           mkdir -p Assets.xcassets/AppIcon.appiconset
           cat << 'EOF' > Assets.xcassets/AppIcon.appiconset/Contents.json
           {
@@ -63,7 +62,6 @@ jobs:
               }
           }
 
-          // MARK: - Models
           struct AppItem: Identifiable, Codable {
               var id = UUID()
               var name: String
@@ -102,7 +100,6 @@ jobs:
               let appCount: Int
           }
 
-          // MARK: - Colors
           extension Color {
               static let darkBg = Color(red: 0.05, green: 0.05, blue: 0.12)
               static let cardBg = Color(red: 0.10, green: 0.10, blue: 0.20)
@@ -110,7 +107,6 @@ jobs:
               static let primaryBlue = Color(red: 0.15, green: 0.45, blue: 0.95)
           }
 
-          // MARK: - Document Picker Helper
           struct DocumentPicker: UIViewControllerRepresentable {
               var allowedUTIs: [UTType]
               var onPick: (URL) -> Void
@@ -120,46 +116,26 @@ jobs:
                   picker.delegate = context.coordinator
                   return picker
               }
-
               func updateUIViewController(_ uiViewController: UIDocumentPickerViewController, context: Context) {}
-
-              func makeCoordinator() -> Coordinator {
-                  Coordinator(self)
-              }
+              func makeCoordinator() -> Coordinator { Coordinator(self) }
 
               class Coordinator: NSObject, UIDocumentPickerDelegate {
                   var parent: DocumentPicker
                   init(_ parent: DocumentPicker) { self.parent = parent }
-
                   func documentPicker(_ controller: UIDocumentPickerViewController, didPickDocumentsAt urls: [URL]) {
-                      if let url = urls.first {
-                          parent.onPick(url)
-                      }
+                      if let url = urls.first { parent.onPick(url) }
                   }
               }
           }
 
-          // MARK: - Main ContentView
           struct ContentView: View {
               @State private var selectedTab = 0
               @State private var searchText = ""
               
-              @State private var availableApps: [AppItem] = [
-                  AppItem(name: "SkyGuide", bundleID: "com.fifthstarlabs.skyguide", version: "11.0", size: "120 MB", iconURL: "", downloadURL: "https://fastsign.dev/apps/skyguide.ipa"),
-                  AppItem(name: "Textastic", bundleID: "com.textasticapp.textastic", version: "10.2", size: "38.5 MB", iconURL: "", downloadURL: "https://fastsign.dev/apps/textastic.ipa"),
-                  AppItem(name: "Hevy", bundleID: "com.hevy.app", version: "2.1", size: "45 MB", iconURL: "", downloadURL: "https://fastsign.dev/apps/hevy.ipa"),
-                  AppItem(name: "Yazio", bundleID: "com.yazio.android", version: "7.8", size: "62 MB", iconURL: "", downloadURL: "https://fastsign.dev/apps/yazio.ipa"),
-                  AppItem(name: "PeakVisor", bundleID: "com.routes.peakvisor", version: "4.5", size: "90 MB", iconURL: "", downloadURL: "https://fastsign.dev/apps/peakvisor.ipa"),
-                  AppItem(name: "Habits", bundleID: "com.habits.app", version: "3.0", size: "22 MB", iconURL: "", downloadURL: "https://fastsign.dev/apps/habits.ipa"),
-                  AppItem(name: "Drafts", bundleID: "com.agiletortoise.Drafts5", version: "35.1", size: "55 MB", iconURL: "", downloadURL: "https://fastsign.dev/apps/drafts.ipa")
-              ]
-              
-              @State private var libraryApps: [AppItem] = [
-                  AppItem(name: "Textastic", bundleID: "com.textasticapp.textastic", version: "10.2", size: "38.5 MB", iconURL: "", downloadURL: "")
-              ]
-              
+              @State private var availableApps: [AppItem] = []
+              @State private var libraryApps: [AppItem] = []
               @State private var sourcesList: [AppSource] = [
-                  AppSource(name: "FastSign Main Repo", url: "https://fastsign.dev/repo.json", appCount: 7)
+                  AppSource(name: "FastSign Main Repo", url: "https://fastsign.dev/repo.json", appCount: 0)
               ]
               
               @State private var showSourcesModal = false
@@ -167,13 +143,13 @@ jobs:
               @State private var showIPAPicker = false
               @State private var showP12Picker = false
               @State private var showProvPicker = false
-              
               @State private var selectedAppToEdit: AppItem? = nil
               
-              @State private var p12Name = "لم يتم الرفع"
-              @State private var provName = "لم يتم الرفع"
+              // بيانات الشهادة المحفوظة عبر UserDefaults لتستمر بعد الإغلاق
+              @AppStorage("p12Name") private var p12Name = "لم يتم الرفع"
+              @AppStorage("provName") private var provName = "لم يتم الرفع"
+              @AppStorage("isCertValid") private var isCertValid = false
               @State private var certPassword = ""
-              @State private var isCertValid = false
 
               init() {
                   UITabBar.appearance().isHidden = true
@@ -202,49 +178,53 @@ jobs:
 
                                           ScrollView {
                                               VStack(spacing: 12) {
-                                                  ForEach(filteredApps) { app in
-                                                      HStack(spacing: 15) {
-                                                          ZStack {
-                                                              RoundedRectangle(cornerRadius: 16)
-                                                                  .fill(LinearGradient(colors: [.primaryBlue, .primaryPurple], startPoint: .topLeading, endPoint: .bottomTrailing))
-                                                                  .frame(width: 55, height: 55)
-                                                              Text(String(app.name.prefix(1)))
-                                                                  .font(.title2).bold().foregroundColor(.white)
-                                                          }
-
-                                                          VStack(alignment: .leading, spacing: 4) {
-                                                              Text(app.name)
-                                                                  .font(.system(size: 17, weight: .bold))
-                                                                  .foregroundColor(.white)
-                                                              Text("\(app.version) • \(app.size)")
-                                                                  .font(.system(size: 13))
-                                                                  .foregroundColor(.gray)
-                                                          }
-
-                                                          Spacer()
-
-                                                          Button(action: {
-                                                              if !libraryApps.contains(where: { $0.name == app.name }) {
-                                                                  libraryApps.append(app)
+                                                  if filteredApps.isEmpty {
+                                                      Text("جاري جلب التطبيقات من السورس...").foregroundColor(.gray).padding(.top, 40)
+                                                  } else {
+                                                      ForEach(filteredApps) { app in
+                                                          HStack(spacing: 15) {
+                                                              ZStack {
+                                                                  RoundedRectangle(cornerRadius: 16)
+                                                                      .fill(LinearGradient(colors: [.primaryBlue, .primaryPurple], startPoint: .topLeading, endPoint: .bottomTrailing))
+                                                                      .frame(width: 55, height: 55)
+                                                                  Text(String(app.name.prefix(1)))
+                                                                      .font(.title2).bold().foregroundColor(.white)
                                                               }
-                                                              selectedTab = 1
-                                                          }) {
-                                                              Text("تثبيت")
-                                                                  .font(.system(size: 15, weight: .bold))
-                                                                  .padding(.horizontal, 20)
-                                                                  .padding(.vertical, 8)
-                                                                  .background(Color.primaryBlue)
-                                                                  .foregroundColor(.white)
-                                                                  .cornerRadius(20)
+
+                                                              VStack(alignment: .leading, spacing: 4) {
+                                                                  Text(app.name)
+                                                                      .font(.system(size: 17, weight: .bold))
+                                                                      .foregroundColor(.white)
+                                                                  Text("\(app.version) • \(app.size)")
+                                                                      .font(.system(size: 13))
+                                                                      .foregroundColor(.gray)
+                                                              }
+
+                                                              Spacer()
+
+                                                              Button(action: {
+                                                                  if !libraryApps.contains(where: { $0.name == app.name }) {
+                                                                      libraryApps.append(app)
+                                                                  }
+                                                                  selectedTab = 1
+                                                              }) {
+                                                                  Text("تثبيت")
+                                                                      .font(.system(size: 15, weight: .bold))
+                                                                      .padding(.horizontal, 20)
+                                                                      .padding(.vertical, 8)
+                                                                      .background(Color.primaryBlue)
+                                                                      .foregroundColor(.white)
+                                                                      .cornerRadius(20)
+                                                              }
                                                           }
+                                                          .padding()
+                                                          .background(Color.cardBg)
+                                                          .cornerRadius(20)
+                                                          .padding(.horizontal)
                                                       }
-                                                      .padding()
-                                                      .background(Color.cardBg)
-                                                      .cornerRadius(20)
-                                                      .padding(.horizontal)
                                                   }
                                               }
-                                              .padding(.bottom, 100)
+                                              .padding(.bottom, 110)
                                           }
                                       }
                                   }
@@ -278,7 +258,7 @@ jobs:
                                               }
                                               .padding(.horizontal)
 
-                                              Text("التطبيقات").font(.caption).foregroundColor(.gray).frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal)
+                                              Text("التطبيقات الجاهزة للتوقيع والتثبيت").font(.caption).foregroundColor(.gray).frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal)
 
                                               ForEach(libraryApps) { app in
                                                   Button(action: { selectedAppToEdit = app }) {
@@ -293,7 +273,7 @@ jobs:
 
                                                           VStack(alignment: .leading, spacing: 4) {
                                                               Text(app.name).font(.system(size: 16, weight: .bold)).foregroundColor(.white)
-                                                              Text("جاهز للتعديل والتوقيع").font(.system(size: 13)).foregroundColor(.gray)
+                                                              Text(isCertValid ? "جاهز للتوقيع بالشهادة المفعلة" : "يرجى رفع الشهادة في الإعدادات").font(.system(size: 13)).foregroundColor(isCertValid ? .green : .orange)
                                                           }
                                                           Spacer()
                                                           Image(systemName: "chevron.left").foregroundColor(.gray)
@@ -305,7 +285,7 @@ jobs:
                                                   }
                                               }
                                           }
-                                          .padding(.bottom, 100)
+                                          .padding(.bottom, 110)
                                       }
                                   }
                                   .navigationBarTitle("توقيع", displayMode: .large)
@@ -321,7 +301,7 @@ jobs:
                                                   HStack {
                                                       Text("الشهادة").foregroundColor(.white)
                                                       Spacer()
-                                                      Text(isCertValid ? "مفعلة" : "غير مفعلة").foregroundColor(isCertValid ? .green : .red)
+                                                      Text(isCertValid ? "مفعلة ومنحفظة" : "غير مفعلة").foregroundColor(isCertValid ? .green : .red)
                                                       Image(systemName: "chevron.left").foregroundColor(.gray)
                                                   }
                                               }
@@ -333,19 +313,16 @@ jobs:
                                           } .listRowBackground(Color.cardBg)
 
                                           Section {
-                                              Button("إعدادات التطبيق") {}.foregroundColor(.white)
-                                              Button("مفضلتي") {}.foregroundColor(.white)
                                               Button("مصادر التطبيقات") { showSourcesModal = true }.foregroundColor(.white)
-                                              Button("التحديثات") {}.foregroundColor(.white)
                                               Button("مكتبة التطبيقات") {}.foregroundColor(.white)
                                           } .listRowBackground(Color.cardBg)
 
                                           Section {
-                                              Button("تنظيف الملفات") {}.foregroundColor(.red)
+                                              Button("تنظيف الملفات المؤقتة") { libraryApps.removeAll() }.foregroundColor(.red)
                                           } .listRowBackground(Color.cardBg)
                                       }
                                       .scrollContentBackground(.hidden)
-                                      .padding(.bottom, 100)
+                                      .padding(.bottom, 110)
                                   }
                                   .navigationBarTitle("الإعدادات", displayMode: .large)
                               }
@@ -373,7 +350,7 @@ jobs:
                                                   .foregroundColor(.gray)
                                                   .multilineTextAlignment(.center)
 
-                                              Text("أداة متخصصة لتوقيع وتثبيت تطبيقات IPA مباشرة من جهازك")
+                                              Text("أداة متخصصة لتوقيع وتثبيت تطبيقات IPA مباشرة باستخدام الشهادة المحفوظة")
                                                   .font(.subheadline)
                                                   .foregroundColor(.gray)
                                                   .multilineTextAlignment(.center)
@@ -424,14 +401,14 @@ jobs:
                                           Spacer()
                                       }
                                       .padding(.top, 20)
-                                      .padding(.bottom, 100)
+                                      .padding(.bottom, 110)
                                   }
                                   .navigationBarTitle("حول", displayMode: .large)
                               }
                           }
                       }
 
-                      // شريط الحاويات السفلي
+                      // شريط تنقل زجاجي عائم مرتب تماماً
                       HStack {
                           TabBarButton(icon: "square.stack.3d.up.fill", title: "التطبيقات", tag: 0, selection: $selectedTab)
                           TabBarButton(icon: "signature", title: "توقيع", tag: 1, selection: $selectedTab)
@@ -440,7 +417,7 @@ jobs:
                       }
                       .padding(.vertical, 12)
                       .padding(.horizontal, 10)
-                      .background(Color.cardBg.opacity(0.95))
+                      .background(.ultraThinMaterial)
                       .cornerRadius(30)
                       .overlay(
                           RoundedRectangle(cornerRadius: 30)
@@ -450,6 +427,9 @@ jobs:
                       .padding(.bottom, 12)
                   }
                   .edgesIgnoringSafeArea(.all)
+                  .onAppear {
+                      fetchDefaultRepo()
+                  }
                   .sheet(isPresented: $showSourcesModal) {
                       SourcesModalView(sourcesList: $sourcesList, availableApps: $availableApps)
                   }
@@ -464,24 +444,44 @@ jobs:
                       )
                   }
                   .sheet(item: $selectedAppToEdit) { app in
-                      EditAppModalView(app: app, isCertValid: isCertValid)
+                      EditAppModalView(app: app, isCertValid: isCertValid, p12Name: p12Name)
                   }
-                  .sheet(isPresented: $showIPAPicker) {
-                      DocumentPicker(allowedUTIs: [.item, .data]) { url in
+                  .fileImporter(isPresented: $showIPAPicker, allowedContentTypes: [.item, .data]) { result in
+                      if case .success(let url) = result {
                           let newApp = AppItem(name: url.deletingPathExtension().lastPathComponent, bundleID: "com.srt.custom", version: "1.0", size: "30 MB", iconURL: "", downloadURL: url.absoluteString)
                           libraryApps.append(newApp)
                       }
                   }
-                  .sheet(isPresented: $showP12Picker) {
-                      DocumentPicker(allowedUTIs: [.item, .data]) { url in
+                  .fileImporter(isPresented: $showP12Picker, allowedContentTypes: [.item, .data]) { result in
+                      if case .success(let url) = result {
                           p12Name = url.lastPathComponent
                       }
                   }
-                  .sheet(isPresented: $showProvPicker) {
-                      DocumentPicker(allowedUTIs: [.item, .data]) { url in
+                  .fileImporter(isPresented: $showProvPicker, allowedContentTypes: [.item, .data]) { result in
+                      if case .success(let url) = result {
                           provName = url.lastPathComponent
                       }
                   }
+              }
+
+              func fetchDefaultRepo() {
+                  guard let url = URL(string: "https://fastsign.dev/repo.json") else { return }
+                  URLSession.shared.dataTask(with: url) { data, _, _ in
+                      if let data = data, let repo = try? JSONDecoder().decode(AltStoreRepo.self, from: data) {
+                          var newItems: [AppItem] = []
+                          if let apps = repo.apps {
+                              for a in apps {
+                                  let sz = a.size != nil ? "\(a.size! / (1024*1024)) MB" : "45 MB"
+                                  newItems.append(AppItem(name: a.name, bundleID: a.bundleIdentifier, version: a.version, size: sz, iconURL: a.iconURL ?? "", downloadURL: a.downloadURL))
+                              }
+                          }
+                          DispatchQueue.main.async {
+                              if !newItems.isEmpty {
+                                  availableApps = newItems
+                              }
+                          }
+                      }
+                  }.resume()
               }
 
               var filteredApps: [AppItem] {
@@ -604,8 +604,8 @@ jobs:
                                   .foregroundColor(.white)
                                   .cornerRadius(14)
 
-                              Button("حفظ وتفعيل الشهادة") {
-                                  if !passwordInput.isEmpty && p12Name != "لم يتم الرفع" {
+                              Button("حفظ وتفعيل الشهادة نهائياً") {
+                                  if p12Name != "لم يتم الرفع" {
                                       isCertValid = true
                                   }
                                   dismiss()
@@ -629,6 +629,7 @@ jobs:
           struct EditAppModalView: View {
               @State var app: AppItem
               var isCertValid: Bool
+              var p12Name: String
               @State private var statusMsg = ""
               @Environment(\.dismiss) var dismiss
 
@@ -657,15 +658,15 @@ jobs:
                                   }
 
                                   if !statusMsg.isEmpty {
-                                      Text(statusMsg).font(.subheadline).foregroundColor(.green)
+                                      Text(statusMsg).font(.subheadline).foregroundColor(.green).multilineTextAlignment(.center)
                                   }
 
                                   HStack(spacing: 15) {
-                                      Button("توقيع وتثبيت") {
+                                      Button("توقيع وتثبيت مباشر") {
                                           if isCertValid {
-                                              statusMsg = "تم توقيع التطبيق وتجهيز رابط التثبيت!"
+                                              statusMsg = "تم توقيع التطبيق باستخدام الشهادة (\(p12Name)) وجاهز للتثبيت الفوري!"
                                           } else {
-                                              statusMsg = "يرجى رفع ملف الشهادة وكلمة السر من الإعدادات أولاً."
+                                              statusMsg = "يرجى رفع الشهادة (.p12) من الإعدادات أولاً."
                                           }
                                       }
                                       .font(.bold(.body)())
@@ -677,9 +678,9 @@ jobs:
 
                                       Button("توقيع فقط") {
                                           if isCertValid {
-                                              statusMsg = "تم توقيع التطبيق وتصوير IPA جديد."
+                                              statusMsg = "تم توقيع ملف الـ IPA بنجاح."
                                           } else {
-                                              statusMsg = "يرجى رفع الشهادة أولاً."
+                                              statusMsg = "يرجى رفع الشهادة من الإعدادات."
                                           }
                                       }
                                       .font(.bold(.body)())
@@ -693,7 +694,7 @@ jobs:
                               .padding()
                           }
                       }
-                      .navigationBarTitle("تعديل التطبيق", displayMode: .inline)
+                      .navigationBarTitle("تعديل وتوقيع التطبيق", displayMode: .inline)
                   }
               }
           }
