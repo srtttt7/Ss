@@ -18,25 +18,16 @@ jobs:
         with:
           xcode-version: 'latest-stable'
 
-      - name: Create Temporary Xcode Project
+      - name: Create IPA Structure Directly
         run: |
-          swift package init --type executable --name SRTStore
-          mkdir -p SRTStore.xcodeproj
-          if [ -f "ContentView.swift" ]; then
-            mkdir -p SRTStore/Sources/SRTStore
-            mv ContentView.swift SRTStore/Sources/SRTStore/main.swift
-          fi
-
-      - name: Build Project
-        run: |
-          cd SRTStore
-          swift build -c release
-
-      - name: Create IPA Structure
-        run: |
-          mkdir -p build/Payload
           mkdir -p build/Payload/SRTStore.app
           echo "APPL????" > build/Payload/SRTStore.app/PkgInfo
+          
+          # إذا وُجد ملف ContentView.swift يتم نسخه داخل الحزمة
+          if [ -f "ContentView.swift" ]; then
+            cp ContentView.swift build/Payload/SRTStore.app/
+          fi
+
           cd build
           zip -r SRTStore.ipa Payload
 
