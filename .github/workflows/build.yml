@@ -7,7 +7,7 @@ on:
 
 jobs:
   build-ios:
-    runs-on: macos-latest
+    runs-on: macos-14
 
     steps:
       - name: Checkout Code
@@ -18,16 +18,19 @@ jobs:
         with:
           xcode-version: 'latest-stable'
 
-      - name: Create IPA Structure Directly
+      - name: Build Xcode Archive
         run: |
-          mkdir -p build/Payload/SRTStore.app
-          echo "APPL????" > build/Payload/SRTStore.app/PkgInfo
-          
-          # إذا وُجد ملف ContentView.swift يتم نسخه داخل الحزمة
-          if [ -f "ContentView.swift" ]; then
-            cp ContentView.swift build/Payload/SRTStore.app/
-          fi
+          xcodebuild archive \
+            -project SRTStore.xcodeproj \
+            -scheme SRTStore \
+            -sdk iphoneos \
+            -archivePath build/SRTStore.xcarchive \
+            CODE_SIGNING_ALLOWED=NO
 
+      - name: Package to IPA
+        run: |
+          mkdir -p build/Payload
+          cp -R build/SRTStore.xcarchive/Products/Applications/SRTStore.app build/Payload/
           cd build
           zip -r SRTStore.ipa Payload
 
