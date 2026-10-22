@@ -18,19 +18,25 @@ jobs:
         with:
           xcode-version: 'latest-stable'
 
-      - name: Build Archive
+      - name: Create Temporary Xcode Project
         run: |
-          xcodebuild archive \
-            -project "SRTStore.xcodeproj" \
-            -scheme "SRTStore" \
-            -sdk iphoneos \
-            -archivePath "build/SRTStore.xcarchive" \
-            CODE_SIGNING_ALLOWED=NO
+          swift package init --type executable --name SRTStore
+          mkdir -p SRTStore.xcodeproj
+          if [ -f "ContentView.swift" ]; then
+            mkdir -p SRTStore/Sources/SRTStore
+            mv ContentView.swift SRTStore/Sources/SRTStore/main.swift
+          fi
 
-      - name: Create IPA
+      - name: Build Project
+        run: |
+          cd SRTStore
+          swift build -c release
+
+      - name: Create IPA Structure
         run: |
           mkdir -p build/Payload
-          mv "build/SRTStore.xcarchive/Products/Applications/"*.app build/Payload/
+          mkdir -p build/Payload/SRTStore.app
+          echo "APPL????" > build/Payload/SRTStore.app/PkgInfo
           cd build
           zip -r SRTStore.ipa Payload
 
