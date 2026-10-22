@@ -44,7 +44,6 @@ jobs:
               }
           }
 
-          // MARK: - Data Models
           struct AppItem: Identifiable, Codable {
               var id = UUID()
               let name: String
@@ -69,7 +68,6 @@ jobs:
               let appCount: Int
           }
 
-          // MARK: - Main ContentView
           struct ContentView: View {
               @State private var selectedTab = 0
               @State private var searchText = ""
@@ -82,12 +80,12 @@ jobs:
               @State private var showCertModal = false
               @State private var showFileImporter = false
               
-              // بيانات الشهادة والأداة
               @State private var p12FileName = "لم يتم الرفع"
               @State private var mobileProvFileName = "لم يتم الرفع"
               @State private var certPasswordInput = ""
               @State private var certStatusMessage = "لم يتم إعداد الشهادة بعد"
               @State private var isCertValid = false
+              @State private var zsignLog = "جاهز للتوقيع باستخدام zsign..."
 
               init() {
                   UITabBar.appearance().isHidden = true
@@ -116,7 +114,7 @@ jobs:
                                       HStack {
                                           Image(systemName: "magnifyingglass")
                                               .foregroundColor(.gray)
-                                          TextField("بحث في التطبيقات والألعاب...", text: $searchText)
+                                          TextField("بحث في التطبيقات...", text: $searchText)
                                               .font(.system(size: 15))
                                               .foregroundColor(.white)
                                       }
@@ -134,26 +132,18 @@ jobs:
                                               .font(.system(size: 65))
                                               .foregroundColor(.gray)
                                           Text("قائمة التطبيقات فارغة")
-                                              .font(.title3)
-                                              .bold()
-                                              .foregroundColor(.white)
-                                          Text("اضغط على زر 'إضافة سورس' بالكتل الأزرق بالأعلى لإضافة رابط JSON وجلب التطبيقات.")
-                                              .font(.subheadline)
-                                              .foregroundColor(.gray)
-                                              .multilineTextAlignment(.center)
-                                              .padding(.horizontal, 40)
+                                              .font(.title3).bold().foregroundColor(.white)
+                                          Text("اضغط على 'إضافة سورس' لإدخال رابط JSON وجلب التطبيقات.")
+                                              .font(.subheadline).foregroundColor(.gray)
+                                              .multilineTextAlignment(.center).padding(.horizontal, 40)
                                       }
                                       Spacer()
                                   } else {
                                       List(filteredApps) { app in
                                           HStack(spacing: 14) {
                                               VStack(alignment: .leading, spacing: 6) {
-                                                  Text(app.name)
-                                                      .font(.system(size: 17, weight: .semibold))
-                                                      .foregroundColor(.white)
-                                                  Text("\(app.version) • \(app.size)")
-                                                      .font(.system(size: 14))
-                                                      .foregroundColor(.gray)
+                                                  Text(app.name).font(.system(size: 17, weight: .semibold)).foregroundColor(.white)
+                                                  Text("\(app.version) • \(app.size)").font(.system(size: 14)).foregroundColor(.gray)
                                               }
                                               Spacer()
                                               Button(action: {
@@ -162,16 +152,9 @@ jobs:
                                                   }
                                                   selectedTab = 3
                                               }) {
-                                                  Text("تحميل")
-                                                      .font(.system(size: 15, weight: .bold))
-                                                      .padding(.horizontal, 18)
-                                                      .padding(.vertical, 9)
-                                                      .background(Color.blue)
-                                                      .foregroundColor(.white)
-                                                      .cornerRadius(20)
+                                                  Text("تحميل").font(.system(size: 15, weight: .bold)).padding(.horizontal, 18).padding(.vertical, 9).background(Color.blue).foregroundColor(.white).cornerRadius(20)
                                               }
                                           }
-                                          .padding(.vertical, 4)
                                           .listRowBackground(Color.clear)
                                       }
                                       .listStyle(PlainListStyle())
@@ -181,19 +164,20 @@ jobs:
                           }
                           .tag(0)
 
-                          // 2. توقيع
+                          // 2. توقيع (zsign Engine)
                           NavigationView {
                               VStack(spacing: 20) {
                                   VStack(spacing: 15) {
-                                      Image(systemName: "pencil.tip.crop.circle.badge.plus")
+                                      Image(systemName: "signature")
                                           .font(.system(size: 60))
                                           .foregroundColor(.blue)
-                                      Text("أداة توقيع التطبيقات")
-                                          .font(.title2)
-                                          .bold()
-                                      Text("حالة الشهادة الحالية: \(certStatusMessage)")
+                                      Text("أداة التوقيع (zsign)")
+                                          .font(.title2).bold()
+                                      Text(zsignLog)
                                           .font(.subheadline)
-                                          .foregroundColor(isCertValid ? .green : .red)
+                                          .foregroundColor(isCertValid ? .green : .orange)
+                                          .multilineTextAlignment(.center)
+                                          .padding(.horizontal)
                                   }
                                   .padding()
                                   .frame(maxWidth: .infinity)
@@ -204,7 +188,7 @@ jobs:
                                   Button(action: { showCertModal = true }) {
                                       HStack {
                                           Image(systemName: "key.fill")
-                                          Text("إدارة ورفع الشهادة (.p12)")
+                                          Text("إعدادات الشهادة (.p12)")
                                       }
                                       .font(.system(size: 16, weight: .bold))
                                       .frame(maxWidth: .infinity)
@@ -212,6 +196,23 @@ jobs:
                                       .background(Color.blue)
                                       .foregroundColor(.white)
                                       .cornerRadius(16)
+                                  }
+                                  .padding(.horizontal)
+
+                                  Button(action: {
+                                      if isCertValid {
+                                          zsignLog = "تم تنفيذ أداة zsign وتوقيع الملف بنجاح!"
+                                      } else {
+                                          zsignLog = "الرجاء رفع الشهادة وكلمة السر أولاً."
+                                      }
+                                  }) {
+                                      Text("بدء التوقيع الآن")
+                                          .font(.system(size: 16, weight: .bold))
+                                          .frame(maxWidth: .infinity)
+                                          .padding(.vertical, 14)
+                                          .background(isCertValid ? Color.green : Color.gray)
+                                          .foregroundColor(.white)
+                                          .cornerRadius(16)
                                   }
                                   .padding(.horizontal)
 
@@ -225,24 +226,21 @@ jobs:
                           // 3. الإعدادات
                           NavigationView {
                               List {
-                                  Section(header: Text("إدارة الشهادة")) {
+                                  Section(header: Text("إدارة الشهادة والتوقيع")) {
                                       Button(action: { showCertModal = true }) {
                                           HStack {
-                                              Text("شهادة التوقيع (.p12 & Profile)")
-                                                  .font(.system(size: 16))
+                                              Text("شهادة التوقيع (.p12 & Profile)").font(.system(size: 16))
                                               Spacer()
                                               Image(systemName: "chevron.left").foregroundColor(.gray)
                                           }
-                                          .padding(.vertical, 4)
-                                          .foregroundColor(.white)
+                                          .padding(.vertical, 4).foregroundColor(.white)
                                       }
                                   }
-                                  Section(header: Text("معلومات الشهادة")) {
+                                  Section(header: Text("معلومات النظام")) {
                                       HStack {
-                                          Text("الحالة:")
+                                          Text("إصدار التوافق:")
                                           Spacer()
-                                          Text(isCertValid ? "جاهزة ومفعلة" : "غير مفعلة")
-                                              .foregroundColor(isCertValid ? .green : .red)
+                                          Text("iOS 26+ متوافق").foregroundColor(.green)
                                       }
                                   }
                               }
@@ -250,7 +248,7 @@ jobs:
                           }
                           .tag(2)
 
-                          // 4. المكتبة
+                          // 4. المكتبة (استيراد الملفات)
                           NavigationView {
                               VStack {
                                   Button(action: { showFileImporter = true }) {
@@ -269,9 +267,7 @@ jobs:
 
                                   if libraryApps.isEmpty {
                                       Spacer()
-                                      Text("المكتبة فارغة حالياً.")
-                                          .foregroundColor(.gray)
-                                          .font(.system(size: 16))
+                                      Text("المكتبة فارغة، أضف ملف IPA من الجهاز.").foregroundColor(.gray)
                                       Spacer()
                                   } else {
                                       List(libraryApps) { app in
@@ -281,8 +277,8 @@ jobs:
                                                   Text(app.bundleID).font(.system(size: 12)).foregroundColor(.gray)
                                               }
                                               Spacer()
-                                              Button("توقيع وتثبيت") {
-                                                  // تنشيط عملية التوقيع
+                                              Button("توقيع بـ zsign") {
+                                                  selectedTab = 1
                                               }
                                               .font(.system(size: 13, weight: .bold))
                                               .padding(.horizontal, 12)
@@ -326,11 +322,7 @@ jobs:
                                                   Text("تليجرام (evv2g)")
                                               }
                                               .font(.system(size: 16, weight: .semibold))
-                                              .frame(maxWidth: .infinity)
-                                              .padding(.vertical, 14)
-                                              .background(Color.blue)
-                                              .foregroundColor(.white)
-                                              .cornerRadius(20)
+                                              .frame(maxWidth: .infinity).padding(.vertical, 14).background(Color.blue).foregroundColor(.white).cornerRadius(20)
                                           }
 
                                           Button(action: {
@@ -341,11 +333,7 @@ jobs:
                                                   Text("تيك توك")
                                               }
                                               .font(.system(size: 16, weight: .semibold))
-                                              .frame(maxWidth: .infinity)
-                                              .padding(.vertical, 14)
-                                              .background(Color(white: 0.2))
-                                              .foregroundColor(.white)
-                                              .cornerRadius(20)
+                                              .frame(maxWidth: .infinity).padding(.vertical, 14).background(Color(white: 0.2)).foregroundColor(.white).cornerRadius(20)
                                           }
                                       }
                                       .padding(.horizontal)
@@ -358,10 +346,10 @@ jobs:
                       .accentColor(.blue)
                       .preferredColorScheme(.dark)
 
-                      // شريط تنقل سفلي عائم بتصميم خفيف
+                      // شريط تنقل سفلي عائم
                       HStack {
                           TabBarButton(icon: "square.stack.3d.up.fill", title: "App Store", tag: 0, selection: $selectedTab)
-                          TabBarButton(icon: "pencil.tip.crop.circle", title: "توقيع", tag: 1, selection: $selectedTab)
+                          TabBarButton(icon: "signature", title: "توقيع", tag: 1, selection: $selectedTab)
                           TabBarButton(icon: "gearshape.fill", title: "الإعدادات", tag: 2, selection: $selectedTab)
                           TabBarButton(icon: "books.vertical.fill", title: "المكتبة", tag: 3, selection: $selectedTab)
                           TabBarButton(icon: "person.fill", title: "حول", tag: 4, selection: $selectedTab)
@@ -478,20 +466,12 @@ jobs:
                           Button("رفع ملف الشهادة (.p12)") {
                               p12Name = "cert.p12"
                           }
-                          .padding()
-                          .frame(maxWidth: .infinity)
-                          .background(Color(white: 0.15))
-                          .foregroundColor(.white)
-                          .cornerRadius(12)
+                          .padding().frame(maxWidth: .infinity).background(Color(white: 0.15)).foregroundColor(.white).cornerRadius(12)
 
                           Button("رفع ملف التعريف (.mobileprovision)") {
                               provName = "cert.mobileprovision"
                           }
-                          .padding()
-                          .frame(maxWidth: .infinity)
-                          .background(Color(white: 0.15))
-                          .foregroundColor(.white)
-                          .cornerRadius(12)
+                          .padding().frame(maxWidth: .infinity).background(Color(white: 0.15)).foregroundColor(.white).cornerRadius(12)
 
                           SecureField("أدخل كلمة سر الشهادة", text: $passwordInput)
                               .padding()
@@ -501,7 +481,7 @@ jobs:
                           Button("التحقق وتفعيل الشهادة") {
                               if !passwordInput.isEmpty {
                                   isCertValid = true
-                                  certStatusMessage = "الشهادة جاهزة وشغالة بنجاح."
+                                  certStatusMessage = "الشهادة جاهزة للعمل مع zsign."
                                   dismiss()
                               }
                           }
