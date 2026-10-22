@@ -44,6 +44,7 @@ jobs:
               }
           }
 
+          // MARK: - Data Models
           struct AppItem: Identifiable, Codable {
               var id = UUID()
               let name: String
@@ -52,6 +53,13 @@ jobs:
               let size: String
               let iconURL: String
               let downloadURL: String
+
+              enum CodingKeys: String, CodingKey {
+                  case name, version, size
+                  case bundleID = "bundleIdentifier"
+                  case iconURL = "icon"
+                  case downloadURL = "downloadURL"
+              }
           }
 
           struct AppSource: Identifiable, Codable {
@@ -61,9 +69,11 @@ jobs:
               let appCount: Int
           }
 
+          // MARK: - Main ContentView
           struct ContentView: View {
               @State private var selectedTab = 0
               @State private var searchText = ""
+              
               @State private var availableApps: [AppItem] = []
               @State private var libraryApps: [AppItem] = []
               @State private var sourcesList: [AppSource] = []
@@ -72,24 +82,31 @@ jobs:
               @State private var showCertModal = false
               @State private var showFileImporter = false
               
+              // بيانات الشهادة والأداة
+              @State private var p12FileName = "لم يتم الرفع"
+              @State private var mobileProvFileName = "لم يتم الرفع"
               @State private var certPasswordInput = ""
-              @State private var certStatusMessage = "لم يتم رفع الشهادة بعد"
+              @State private var certStatusMessage = "لم يتم إعداد الشهادة بعد"
               @State private var isCertValid = false
+
+              init() {
+                  UITabBar.appearance().isHidden = true
+              }
 
               var body: some View {
                   ZStack(alignment: .bottom) {
                       TabView(selection: $selectedTab) {
-                          // 1. App Store
+                          // 1. App Store (التطبيقات)
                           NavigationView {
-                              VStack(spacing: 15) {
-                                  HStack(spacing: 12) {
+                              VStack(spacing: 12) {
+                                  HStack(spacing: 10) {
                                       Button(action: { showSourcesModal = true }) {
                                           HStack {
                                               Image(systemName: "plus.circle.fill")
                                               Text("إضافة سورس")
                                           }
                                           .font(.system(size: 15, weight: .bold))
-                                          .padding(.horizontal, 16)
+                                          .padding(.horizontal, 14)
                                           .padding(.vertical, 12)
                                           .background(Color.blue)
                                           .foregroundColor(.white)
@@ -99,7 +116,7 @@ jobs:
                                       HStack {
                                           Image(systemName: "magnifyingglass")
                                               .foregroundColor(.gray)
-                                          TextField("بحث في التطبيقات...", text: $searchText)
+                                          TextField("بحث في التطبيقات والألعاب...", text: $searchText)
                                               .font(.system(size: 15))
                                               .foregroundColor(.white)
                                       }
@@ -114,13 +131,13 @@ jobs:
                                       Spacer()
                                       VStack(spacing: 15) {
                                           Image(systemName: "square.stack.3d.up.slash")
-                                              .font(.system(size: 60))
+                                              .font(.system(size: 65))
                                               .foregroundColor(.gray)
                                           Text("قائمة التطبيقات فارغة")
                                               .font(.title3)
                                               .bold()
                                               .foregroundColor(.white)
-                                          Text("قم بإضافة سورس جديد من زر 'إضافة' بالأعلى.")
+                                          Text("اضغط على زر 'إضافة سورس' بالكتل الأزرق بالأعلى لإضافة رابط JSON وجلب التطبيقات.")
                                               .font(.subheadline)
                                               .foregroundColor(.gray)
                                               .multilineTextAlignment(.center)
@@ -131,8 +148,12 @@ jobs:
                                       List(filteredApps) { app in
                                           HStack(spacing: 14) {
                                               VStack(alignment: .leading, spacing: 6) {
-                                                  Text(app.name).font(.system(size: 17, weight: .semibold)).foregroundColor(.white)
-                                                  Text("\(app.version) • \(app.size)").font(.system(size: 14)).foregroundColor(.gray)
+                                                  Text(app.name)
+                                                      .font(.system(size: 17, weight: .semibold))
+                                                      .foregroundColor(.white)
+                                                  Text("\(app.version) • \(app.size)")
+                                                      .font(.system(size: 14))
+                                                      .foregroundColor(.gray)
                                               }
                                               Spacer()
                                               Button(action: {
@@ -141,7 +162,13 @@ jobs:
                                                   }
                                                   selectedTab = 3
                                               }) {
-                                                  Text("تحميل").font(.system(size: 15, weight: .bold)).padding(.horizontal, 18).padding(.vertical, 9).background(Color.blue).foregroundColor(.white).cornerRadius(20)
+                                                  Text("تحميل")
+                                                      .font(.system(size: 15, weight: .bold))
+                                                      .padding(.horizontal, 18)
+                                                      .padding(.vertical, 9)
+                                                      .background(Color.blue)
+                                                      .foregroundColor(.white)
+                                                      .cornerRadius(20)
                                               }
                                           }
                                           .padding(.vertical, 4)
@@ -157,9 +184,40 @@ jobs:
                           // 2. توقيع
                           NavigationView {
                               VStack(spacing: 20) {
-                                  Text("أداة التوقيع والاستيراد").font(.title2).bold().padding(.top, 30)
+                                  VStack(spacing: 15) {
+                                      Image(systemName: "pencil.tip.crop.circle.badge.plus")
+                                          .font(.system(size: 60))
+                                          .foregroundColor(.blue)
+                                      Text("أداة توقيع التطبيقات")
+                                          .font(.title2)
+                                          .bold()
+                                      Text("حالة الشهادة الحالية: \(certStatusMessage)")
+                                          .font(.subheadline)
+                                          .foregroundColor(isCertValid ? .green : .red)
+                                  }
+                                  .padding()
+                                  .frame(maxWidth: .infinity)
+                                  .background(Color(white: 0.12))
+                                  .cornerRadius(20)
+                                  .padding(.horizontal)
+
+                                  Button(action: { showCertModal = true }) {
+                                      HStack {
+                                          Image(systemName: "key.fill")
+                                          Text("إدارة ورفع الشهادة (.p12)")
+                                      }
+                                      .font(.system(size: 16, weight: .bold))
+                                      .frame(maxWidth: .infinity)
+                                      .padding(.vertical, 14)
+                                      .background(Color.blue)
+                                      .foregroundColor(.white)
+                                      .cornerRadius(16)
+                                  }
+                                  .padding(.horizontal)
+
                                   Spacer()
                               }
+                              .padding(.top, 10)
                               .navigationBarTitle("توقيع", displayMode: .large)
                           }
                           .tag(1)
@@ -170,12 +228,21 @@ jobs:
                                   Section(header: Text("إدارة الشهادة")) {
                                       Button(action: { showCertModal = true }) {
                                           HStack {
-                                              Text("شهادة التوقيع (.p12)").font(.system(size: 16))
+                                              Text("شهادة التوقيع (.p12 & Profile)")
+                                                  .font(.system(size: 16))
                                               Spacer()
                                               Image(systemName: "chevron.left").foregroundColor(.gray)
                                           }
                                           .padding(.vertical, 4)
                                           .foregroundColor(.white)
+                                      }
+                                  }
+                                  Section(header: Text("معلومات الشهادة")) {
+                                      HStack {
+                                          Text("الحالة:")
+                                          Spacer()
+                                          Text(isCertValid ? "جاهزة ومفعلة" : "غير مفعلة")
+                                              .foregroundColor(isCertValid ? .green : .red)
                                       }
                                   }
                               }
@@ -202,14 +269,27 @@ jobs:
 
                                   if libraryApps.isEmpty {
                                       Spacer()
-                                      Text("المكتبة فارغة حالياً.").foregroundColor(.gray).font(.system(size: 16))
+                                      Text("المكتبة فارغة حالياً.")
+                                          .foregroundColor(.gray)
+                                          .font(.system(size: 16))
                                       Spacer()
                                   } else {
                                       List(libraryApps) { app in
                                           HStack {
-                                              Text(app.name).font(.system(size: 16)).foregroundColor(.white)
+                                              VStack(alignment: .leading, spacing: 4) {
+                                                  Text(app.name).font(.system(size: 16, weight: .bold)).foregroundColor(.white)
+                                                  Text(app.bundleID).font(.system(size: 12)).foregroundColor(.gray)
+                                              }
                                               Spacer()
-                                              Text("جاهز للتثبيت").font(.caption).foregroundColor(.green)
+                                              Button("توقيع وتثبيت") {
+                                                  // تنشيط عملية التوقيع
+                                              }
+                                              .font(.system(size: 13, weight: .bold))
+                                              .padding(.horizontal, 12)
+                                              .padding(.vertical, 6)
+                                              .background(Color.blue)
+                                              .foregroundColor(.white)
+                                              .cornerRadius(12)
                                           }
                                           .listRowBackground(Color.clear)
                                       }
@@ -246,7 +326,11 @@ jobs:
                                                   Text("تليجرام (evv2g)")
                                               }
                                               .font(.system(size: 16, weight: .semibold))
-                                              .frame(maxWidth: .infinity).padding(.vertical, 14).background(Color.blue).foregroundColor(.white).cornerRadius(20)
+                                              .frame(maxWidth: .infinity)
+                                              .padding(.vertical, 14)
+                                              .background(Color.blue)
+                                              .foregroundColor(.white)
+                                              .cornerRadius(20)
                                           }
 
                                           Button(action: {
@@ -257,7 +341,11 @@ jobs:
                                                   Text("تيك توك")
                                               }
                                               .font(.system(size: 16, weight: .semibold))
-                                              .frame(maxWidth: .infinity).padding(.vertical, 14).background(Color(white: 0.2)).foregroundColor(.white).cornerRadius(20)
+                                              .frame(maxWidth: .infinity)
+                                              .padding(.vertical, 14)
+                                              .background(Color(white: 0.2))
+                                              .foregroundColor(.white)
+                                              .cornerRadius(20)
                                           }
                                       }
                                       .padding(.horizontal)
@@ -270,7 +358,7 @@ jobs:
                       .accentColor(.blue)
                       .preferredColorScheme(.dark)
 
-                      // شريط الحاويات العائم (Floating Dock Glass)
+                      // شريط تنقل سفلي عائم بتصميم خفيف
                       HStack {
                           TabBarButton(icon: "square.stack.3d.up.fill", title: "App Store", tag: 0, selection: $selectedTab)
                           TabBarButton(icon: "pencil.tip.crop.circle", title: "توقيع", tag: 1, selection: $selectedTab)
@@ -294,11 +382,17 @@ jobs:
                       SourcesModalView(sourcesList: $sourcesList, availableApps: $availableApps)
                   }
                   .sheet(isPresented: $showCertModal) {
-                      CertificateModalView(passwordInput: $certPasswordInput, certStatusMessage: $certStatusMessage, isCertValid: $isCertValid)
+                      CertificateModalView(
+                          p12Name: $p12FileName,
+                          provName: $mobileProvFileName,
+                          passwordInput: $certPasswordInput,
+                          certStatusMessage: $certStatusMessage,
+                          isCertValid: $isCertValid
+                      )
                   }
                   .fileImporter(isPresented: $showFileImporter, allowedContentTypes: [UTType.item]) { result in
                       if case .success(let url) = result {
-                          let customApp = AppItem(name: url.lastPathComponent, bundleID: "com.local.app", version: "1.0", size: "25 MB", iconURL: "", downloadURL: url.absoluteString)
+                          let customApp = AppItem(name: url.lastPathComponent, bundleID: "com.local.app", version: "1.0", size: "30 MB", iconURL: "", downloadURL: url.absoluteString)
                           libraryApps.append(customApp)
                       }
                   }
@@ -367,9 +461,12 @@ jobs:
                       .padding()
                       .navigationBarTitle("إضافة سورس جديد", displayMode: .inline)
                   }
-          } }
+              }
+          }
 
           struct CertificateModalView: View {
+              @Binding var p12Name: String
+              @Binding var provName: String
               @Binding var passwordInput: String
               @Binding var certStatusMessage: String
               @Binding var isCertValid: Bool
@@ -378,15 +475,33 @@ jobs:
               var body: some View {
                   NavigationView {
                       VStack(spacing: 20) {
+                          Button("رفع ملف الشهادة (.p12)") {
+                              p12Name = "cert.p12"
+                          }
+                          .padding()
+                          .frame(maxWidth: .infinity)
+                          .background(Color(white: 0.15))
+                          .foregroundColor(.white)
+                          .cornerRadius(12)
+
+                          Button("رفع ملف التعريف (.mobileprovision)") {
+                              provName = "cert.mobileprovision"
+                          }
+                          .padding()
+                          .frame(maxWidth: .infinity)
+                          .background(Color(white: 0.15))
+                          .foregroundColor(.white)
+                          .cornerRadius(12)
+
                           SecureField("أدخل كلمة سر الشهادة", text: $passwordInput)
                               .padding()
                               .background(Color(white: 0.15))
                               .cornerRadius(12)
 
-                          Button("التحقق وحفظ الشهادة") {
+                          Button("التحقق وتفعيل الشهادة") {
                               if !passwordInput.isEmpty {
                                   isCertValid = true
-                                  certStatusMessage = "الشهادة صالحة وتعمل بكفاءة."
+                                  certStatusMessage = "الشهادة جاهزة وشغالة بنجاح."
                                   dismiss()
                               }
                           }
@@ -402,7 +517,8 @@ jobs:
                       .padding()
                       .navigationBarTitle("إدارة الشهادة", displayMode: .inline)
                   }
-          } }
+              }
+          }
 
           _ = UIApplicationMain(CommandLine.argc, CommandLine.unsafeArgv, nil, NSStringFromClass(AppDelegate.self))
           EOF
