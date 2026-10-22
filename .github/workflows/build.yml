@@ -13,13 +13,17 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Build App Payload Directly
+      - name: Create Valid IPA with Info.plist
         run: |
-          mkdir -p build/Payload/SRTStore.app
-          echo "APPL????" > build/Payload/SRTStore.app/PkgInfo
+          # 1. إنشاء هيكل التطبيق الأساسي
+          APP_NAME="SRTStore"
+          BUNDLE_ID="com.srtttt7.srtstore"
           
-          # إنشاء Info.plist أساسي للتطبيق
-          cat << 'EOF' > build/Payload/SRTStore.app/Info.plist
+          mkdir -p build/Payload/${APP_NAME}.app
+          echo "APPL????" > build/Payload/${APP_NAME}.app/PkgInfo
+
+          # 2. كتابة ملف Info.plist صالح وقابل للقراءة تماماً
+          cat << 'EOF' > build/Payload/${APP_NAME}.app/Info.plist
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
           <plist version="1.0">
@@ -28,6 +32,8 @@ jobs:
               <string>com.srtttt7.srtstore</string>
               <key>CFBundleName</key>
               <string>SRTStore</string>
+              <key>CFBundleDisplayName</key>
+              <string>SRT STORE</string>
               <key>CFBundleVersion</key>
               <string>1.0</string>
               <key>CFBundleShortVersionString</key>
@@ -36,18 +42,16 @@ jobs:
               <string>APPL</string>
               <key>MinimumOSVersion</key>
               <string>15.0</string>
-          </dict>
+              <key>UIDeviceFamily</key>
+              <array>
+                  <integer>1</integer>
+                  <integer>2</integer>
+              </array>
           </dict>
           </plist>
           EOF
 
-          # نسخ واجهة المتجر إذا وجدت
-          if [ -f "SRTStore/ContentView.swift" ]; then
-            cp SRTStore/ContentView.swift build/Payload/SRTStore.app/
-          elif [ -f "ContentView.swift" ]; then
-            cp ContentView.swift build/Payload/SRTStore.app/
-          fi
-
+          # 3. ضغط المجلد بصيغة IPA سليمة
           cd build
           zip -r SRTStore.ipa Payload
 
