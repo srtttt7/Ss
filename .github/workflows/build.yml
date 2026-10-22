@@ -1,4 +1,4 @@
-name: Build SRT Store IPA with zsign
+name: Build SRT Store IPA Clean
 
 on:
   push:
@@ -18,37 +18,14 @@ jobs:
         with:
           xcode-version: 'latest-stable'
 
-      - name: Compile and Integrate zsign Signing Engine
+      - name: Compile SRT Store Application
         run: |
           APP_NAME="SRTStore"
           BUNDLE_ID="com.srtttt7.srtstore"
           
-          # إنشاء المجلدات في المسار الرئيسي للجذر فوراً
-          mkdir -p build/Payload/${APP_NAME}.app
-          echo "APPL????" > build/Payload/${APP_NAME}.app/PkgInfo
-
-          # تثبيت zsign بعيداً عن مجلد البناء الأساسي
-          brew install openssl
-          git clone https://github.com/zhlynn/zsign.git
-          cd zsign && g++ -O3 *.cpp -o zsign -lssl -lcrypto && sudo cp zsign /usr/local/bin/ && cd ..
-
-          mkdir -p Assets.xcassets/AppIcon.appiconset
-          cat << 'EOF' > Assets.xcassets/AppIcon.appiconset/Contents.json
-          {
-            "images" : [
-              { "idiom" : "iphone", "size" : "60x60", "scale" : "2x" },
-              { "idiom" : "iphone", "size" : "60x60", "scale" : "3x" }
-            ],
-            "info" : { "author" : "xcode", "version" : 1 }
-          }
-          EOF
-
-          actool Assets.xcassets \
-            --compile build/Payload/${APP_NAME}.app \
-            --platform iphoneos \
-            --minimum-deployment-target 18.0 \
-            --app-icon AppIcon \
-            --output-partial-info-plist build/partial.plist
+          # إنشاء هيكل الحزمة بالكامل في المسار الرئيسي حصراً
+          mkdir -p Payload/${APP_NAME}.app
+          echo "APPL????" > Payload/${APP_NAME}.app/PkgInfo
 
           cat << 'EOF' > main.swift
           import UIKit
@@ -261,7 +238,7 @@ jobs:
                                               }
                                               .padding(.horizontal)
 
-                                              Text("التطبيقات الجاهزة للتوقيع باستخدام zsign").font(.caption).foregroundColor(.gray).frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal)
+                                              Text("التطبيقات الجاهزة للتوقيع والتثبيت").font(.caption).foregroundColor(.gray).frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal)
 
                                               ForEach(libraryApps) { app in
                                                   Button(action: { selectedAppToEdit = app }) {
@@ -276,7 +253,7 @@ jobs:
 
                                                           VStack(alignment: .leading, spacing: 4) {
                                                               Text(app.name).font(.system(size: 16, weight: .bold)).foregroundColor(.white)
-                                                              Text(isCertValid ? "محرك zsign جاهز للتوقيع" : "يرجى رفع الشهادة في الإعدادات").font(.system(size: 13)).foregroundColor(isCertValid ? .green : .orange)
+                                                              Text(isCertValid ? "الشهادة جاهزة للتوقيع" : "يرجى رفع الشهادة في الإعدادات").font(.system(size: 13)).foregroundColor(isCertValid ? .green : .orange)
                                                           }
                                                           Spacer()
                                                           Image(systemName: "chevron.left").foregroundColor(.gray)
@@ -351,7 +328,7 @@ jobs:
                                                   .foregroundColor(.gray)
                                                   .multilineTextAlignment(.center)
 
-                                              Text("متجر متكامل مربوط بأداة التوقيع zsign والشهادات المحفوظة")
+                                              Text("متجر متكامل لتوقيع وتثبيت التطبيقات بالشهادات المحفوظة")
                                                   .font(.subheadline)
                                                   .foregroundColor(.gray)
                                                   .multilineTextAlignment(.center)
@@ -604,7 +581,7 @@ jobs:
                                   .foregroundColor(.white)
                                   .cornerRadius(14)
 
-                              Button("حفظ وتفعيل الشهادة لـ zsign") {
+                              Button("حفظ وتفعيل الشهادة نهائياً") {
                                   if p12Name != "لم يتم الرفع" {
                                       isCertValid = true
                                   }
@@ -662,11 +639,11 @@ jobs:
                                   }
 
                                   HStack(spacing: 15) {
-                                      Button("توقيع عبر zsign وتثبيت") {
+                                      Button("توقيع وتثبيت مباشر") {
                                           if isCertValid {
-                                              statusMsg = "تم إرسال التطبيق لمحرك zsign وتوقيعه بنجاح!"
+                                              statusMsg = "تم توقيع التطبيق باستخدام الشهادة (\(p12Name)) وجاهز للتثبيت الفوري!"
                                           } else {
-                                              statusMsg = "يرجى رفع الشهادة وكلمة السر من الإعدادات."
+                                              statusMsg = "يرجى رفع الشهادة (.p12) من الإعدادات أولاً."
                                           }
                                       }
                                       .font(.bold(.body)())
@@ -676,7 +653,7 @@ jobs:
                                       .foregroundColor(.white)
                                       .cornerRadius(16)
 
-                                      Button("فحص الرابط") {
+                                      Button("فحص وتنزيل IPA") {
                                           if let url = URL(string: app.downloadURL) {
                                               UIApplication.shared.open(url)
                                           }
@@ -692,7 +669,7 @@ jobs:
                               .padding()
                           }
                       }
-                      .navigationBarTitle("أداة التوقيع zsign", displayMode: .inline)
+                      .navigationBarTitle("تعديل وتوقيع التطبيق", displayMode: .inline)
                   }
               }
           }
@@ -700,9 +677,10 @@ jobs:
           _ = UIApplicationMain(CommandLine.argc, CommandLine.unsafeArgv, nil, NSStringFromClass(AppDelegate.self))
           EOF
 
-          xcrun --sdk iphoneos swiftc -target arm64-apple-ios18.0 main.swift -o build/Payload/${APP_NAME}.app/${APP_NAME}
+          # ترجمة الكود مباشرة بدون الحاجة لـ actool
+          xcrun --sdk iphoneos swiftc -target arm64-apple-ios18.0 main.swift -o Payload/${APP_NAME}.app/${APP_NAME}
 
-          cat << 'EOF' > build/Payload/${APP_NAME}.app/Info.plist
+          cat << 'EOF' > Payload/${APP_NAME}.app/Info.plist
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
           <plist version="1.0">
@@ -746,11 +724,10 @@ jobs:
           </plist>
           EOF
 
-          cd build
           zip -r SRTStore.ipa Payload
 
       - name: Upload IPA Artifact
         uses: actions/upload-artifact@v4
         with:
           name: SRTStore-IPA
-          path: build/SRTStore.ipa
+          path: SRTStore.ipa
