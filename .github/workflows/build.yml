@@ -23,16 +23,13 @@ jobs:
           APP_NAME="SRTStore"
           BUNDLE_ID="com.srtttt7.srtstore"
           
-          # 1. إنشاء مجلد الحزمة
           mkdir -p build/Payload/${APP_NAME}.app
           echo "APPL????" > build/Payload/${APP_NAME}.app/PkgInfo
 
-          # 2. كتابة كود التطبيق المكتمل مع واجهة SwiftUI بداخل main.swift
           cat << 'EOF' > main.swift
           import UIKit
           import SwiftUI
 
-          // MARK: - App Delegate & Entry Point
           @main
           class AppDelegate: UIResponder, UIApplicationDelegate {
               var window: UIWindow?
@@ -47,7 +44,6 @@ jobs:
               }
           }
 
-          // MARK: - Models
           struct AppItem: Identifiable, Codable {
               var id = UUID()
               let name: String
@@ -65,7 +61,6 @@ jobs:
               let appCount: Int
           }
 
-          // MARK: - SwiftUI Main View
           struct ContentView: View {
               @State private var selectedTab = 0
               @State private var searchText = ""
@@ -84,8 +79,6 @@ jobs:
 
               var body: some View {
                   TabView(selection: $selectedTab) {
-                      
-                      // 1. App Store
                       NavigationView {
                           VStack {
                               HStack(spacing: 12) {
@@ -163,7 +156,7 @@ jobs:
                                   .listStyle(PlainListStyle())
                               }
                           }
-                          .navigationBarTitle("التطبيقات", displayMode: .inline)
+                          .navigationBarTitle("التطبيقات")
                       }
                       .tabItem {
                           Image(systemName: "square.stack.3d.up.fill")
@@ -171,20 +164,15 @@ jobs:
                       }
                       .tag(0)
 
-                      // 2. توقيع
                       NavigationView {
                           VStack(spacing: 20) {
                               Text("أداة التوقيع والاستيراد")
                                   .font(.title2)
-                                  .fontWeight(.bold)
+                                  .bold()
                                   .padding(.top, 20)
-                              
-                              Text("يمكنك استيراد وتوقيع ملفات IPA من جهازك.")
-                                  .foregroundColor(.gray)
-
                               Spacer()
                           }
-                          .navigationBarTitle("توقيع", displayMode: .inline)
+                          .navigationBarTitle("توقيع")
                       }
                       .tabItem {
                           Image(systemName: "pencil.tip.crop.circle")
@@ -192,28 +180,20 @@ jobs:
                       }
                       .tag(1)
 
-                      // 3. الإعدادات
                       NavigationView {
                           List {
                               Section(header: Text("إدارة الشهادة")) {
                                   Button(action: { showCertModal = true }) {
                                       HStack {
-                                          Text("شهادة التوقيع (.p12 & Profile)")
+                                          Text("شهادة التوقيع (.p12)")
                                           Spacer()
                                           Image(systemName: "chevron.left").foregroundColor(.gray)
                                       }
                                       .foregroundColor(.white)
                                   }
                               }
-
-                              Section(header: Text("حالة الشهادة")) {
-                                  Text(certStatusMessage)
-                                      .font(.subheadline)
-                                      .foregroundColor(isCertValid ? .green : .red)
-                              }
                           }
-                          .listStyle(GroupedListStyle())
-                          .navigationBarTitle("الإعدادات", displayMode: .inline)
+                          .navigationBarTitle("الإعدادات")
                       }
                       .tabItem {
                           Image(systemName: "gearshape.fill")
@@ -221,27 +201,15 @@ jobs:
                       }
                       .tag(2)
 
-                      // 4. المكتبة
                       NavigationView {
                           VStack {
                               if libraryApps.isEmpty {
                                   Spacer()
-                                  Text("المكتبة فارغة حالياً.")
-                                      .foregroundColor(.gray)
+                                  Text("المكتبة فارغة حالياً.").foregroundColor(.gray)
                                   Spacer()
-                              } else {
-                                  List(libraryApps) { app in
-                                      HStack {
-                                          Text(app.name).foregroundColor(.white)
-                                          Spacer()
-                                          Text("جاهز للتثبيت").font(.caption).foregroundColor(.green)
-                                      }
-                                      .listRowBackground(Color.clear)
-                                  }
-                                  .listStyle(PlainListStyle())
                               }
                           }
-                          .navigationBarTitle("المكتبة", displayMode: .inline)
+                          .navigationBarTitle("المكتبة")
                       }
                       .tabItem {
                           Image(systemName: "books.vertical.fill")
@@ -249,7 +217,6 @@ jobs:
                       }
                       .tag(3)
 
-                      // 5. حول
                       NavigationView {
                           ScrollView {
                               VStack(spacing: 20) {
@@ -257,61 +224,40 @@ jobs:
                                       RoundedRectangle(cornerRadius: 25)
                                           .fill(LinearGradient(gradient: Gradient(colors: [.blue, .purple]), startPoint: .topLeading, endPoint: .bottomTrailing))
                                           .frame(width: 100, height: 100)
-                                      Text("SRT")
-                                          .font(.system(size: 36, weight: .black))
-                                          .foregroundColor(.white)
+                                      Text("SRT").font(.system(size: 36, weight: .black)).foregroundColor(.white)
                                   }
                                   .padding(.top, 20)
 
                                   VStack(spacing: 6) {
-                                      Text("SRT STORE")
-                                          .font(.title)
-                                          .fontWeight(.bold)
-                                      
-                                      Text("المطور: موحي العماري")
-                                          .font(.headline)
-                                          .foregroundColor(.gray)
+                                      Text("SRT STORE").font(.title).bold()
+                                      Text("المطور: موحي العماري").font(.headline).foregroundColor(.gray)
                                   }
 
                                   VStack(spacing: 12) {
                                       Button(action: {
-                                          if let url = URL(string: "https://t.me/evv2g") {
-                                              UIApplication.shared.open(url)
-                                          }
+                                          if let url = URL(string: "https://t.me/evv2g") { UIApplication.shared.open(url) }
                                       }) {
                                           HStack {
                                               Image(systemName: "paperplane.fill")
                                               Text("تليجرام (evv2g)")
                                           }
-                                          .fontWeight(.semibold)
-                                          .frame(maxWidth: .infinity)
-                                          .padding()
-                                          .background(Color.blue)
-                                          .foregroundColor(.white)
-                                          .cornerRadius(20)
+                                          .frame(maxWidth: .infinity).padding().background(Color.blue).foregroundColor(.white).cornerRadius(20)
                                       }
 
                                       Button(action: {
-                                          if let url = URL(string: "https://www.tiktok.com/@l6899l?_r=1&_t=ZS-9AkraJK00Zj") {
-                                              UIApplication.shared.open(url)
-                                          }
+                                          if let url = URL(string: "https://www.tiktok.com/@l6899l?_r=1&_t=ZS-9AkraJK00Zj") { UIApplication.shared.open(url) }
                                       }) {
                                           HStack {
                                               Image(systemName: "video.fill")
                                               Text("تيك توك")
                                           }
-                                          .fontWeight(.semibold)
-                                          .frame(maxWidth: .infinity)
-                                          .padding()
-                                          .background(Color(white: 0.2))
-                                          .foregroundColor(.white)
-                                          .cornerRadius(20)
+                                          .frame(maxWidth: .infinity).padding().background(Color.gray).foregroundColor(.white).cornerRadius(20)
                                       }
                                   }
                                   .padding(.horizontal)
                               }
                           }
-                          .navigationBarTitle("حول", displayMode: .inline)
+                          .navigationBarTitle("حول")
                       }
                       .tabItem {
                           Image(systemName: "person.fill")
@@ -321,18 +267,6 @@ jobs:
                   }
                   .accentColor(.blue)
                   .preferredColorScheme(.dark)
-                  .sheet(isPresented: $showSourcesModal) {
-                      VStack(spacing: 20) {
-                          Text("إضافة سورس جديد").font(.headline).padding(.top)
-                          Button("إغلاق") { showSourcesModal = false }
-                      }
-                  }
-                  .sheet(isPresented: $showCertModal) {
-                      VStack(spacing: 20) {
-                          Text("إدارة الشهادة").font(.headline).padding(.top)
-                          Button("إغلاق") { showCertModal = false }
-                      }
-                  }
               }
 
               var filteredApps: [AppItem] {
@@ -342,10 +276,9 @@ jobs:
           }
           EOF
 
-          # 3. ترجمة الملف الشامل لملف تنفيذي حقيقي للأيفون
-          xcrun --sdk iphoneos swiftc -target arm64-apple-ios15.0 main.swift -o build/Payload/${APP_NAME}.app/${APP_NAME}
+          # ترجمة الكود برفع الإصدار المستهدف إلى iOS 16.0
+          xcrun --sdk iphoneos swiftc -target arm64-apple-ios16.0 main.swift -o build/Payload/${APP_NAME}.app/${APP_NAME}
 
-          # 4. كتابة Info.plist المتوافق
           cat << 'EOF' > build/Payload/${APP_NAME}.app/Info.plist
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -366,7 +299,7 @@ jobs:
               <key>CFBundlePackageType</key>
               <string>APPL</string>
               <key>MinimumOSVersion</key>
-              <string>15.0</string>
+              <string>16.0</string>
               <key>UIRequiredDeviceCapabilities</key>
               <array>
                   <string>arm64</string>
@@ -380,7 +313,6 @@ jobs:
           </plist>
           EOF
 
-          # 5. ضغط الملف بصيغة IPA
           cd build
           zip -r SRTStore.ipa Payload
 
